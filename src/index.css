@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -35,19 +36,12 @@
     --radius: 0.5rem;
 
     --sidebar-background: 0 0% 98%;
-
     --sidebar-foreground: 240 5.3% 26.1%;
-
     --sidebar-primary: 240 5.9% 10%;
-
     --sidebar-primary-foreground: 0 0% 98%;
-
     --sidebar-accent: 240 4.8% 95.9%;
-
     --sidebar-accent-foreground: 240 5.9% 10%;
-
     --sidebar-border: 220 13% 91%;
-
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
 
@@ -97,5 +91,23 @@
 
   body {
     @apply bg-background text-foreground;
+    font-family: -apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  }
+}
+
+/* iMessage specific styles */
+@layer components {
+  .message-bubble {
+    @apply rounded-2xl px-4 py-2 max-w-[80%] break-words;
+  }
+
+  .message-bubble-user {
+    @apply message-bubble bg-imessage-user text-white ml-auto;
+    border-bottom-right-radius: 0.5rem;
+  }
+
+  .message-bubble-admin {
+    @apply message-bubble bg-imessage-admin text-white mr-auto;
+    border-bottom-left-radius: 0.5rem;
   }
 }
