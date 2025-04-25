@@ -1,8 +1,7 @@
-
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { CircleUser } from 'lucide-react';
-import { useToast } from '@/components/ui/toaster';
+import { useToast } from '@/hooks/use-toast';
 
 interface ChatHeaderProps {
   onAuthClick: () => void;
