@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { v4 as uuidv4 } from 'uuid';
 import ChatHeader from '../components/ChatHeader';
 import MessageList from '../components/MessageList';
 import MessageInput from '../components/MessageInput';
@@ -7,14 +6,12 @@ import AuthModal from '../components/AuthModal';
 import { Message } from '@/types/message';
 import { useSupabaseAuth } from '@/hooks/useSupabaseAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
 import { initAudio, playMessageSound } from '../utils/sound';
 
 const Index = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const { user, loading: authLoading, signIn, signUp, signOut, isAdmin } = useSupabaseAuth();
-  const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -30,11 +27,6 @@ const Index = () => {
 
         if (error) {
           console.error('Error fetching messages:', error);
-          toast({
-            title: "Error",
-            description: "Could not load messages",
-            variant: "destructive"
-          });
           return;
         }
 
@@ -47,11 +39,6 @@ const Index = () => {
         setMessages(formattedMessages);
       } catch (error) {
         console.error('Error processing messages:', error);
-        toast({
-          title: "Error",
-          description: "Could not process messages",
-          variant: "destructive"
-        });
       } finally {
         setIsLoading(false);
       }
@@ -89,58 +76,34 @@ const Index = () => {
       supabase.removeChannel(channel);
       document.removeEventListener('click', handleUserInteraction);
     };
-  }, [user?.id, authLoading, toast]);
+  }, [user?.id, authLoading]);
 
   const handleSendMessage = async (content: string) => {
     if (!user) {
       setIsAuthModalOpen(true);
-      toast({
-        title: "Authentication Required",
-        description: "Please sign in or create an account to send messages",
-      });
+      console.log('Authentication required to send messages');
       return;
     }
-
-    console.log('Attempting to send message with user:', user.id);
 
     try {
       const newMessage = {
         content,
         sender_id: user.id,
         is_admin: false,
-        recipient_id: null  // User messages don't need a recipient_id
+        recipient_id: null
       };
 
-      console.log('Sending message:', newMessage);
-      const { data, error } = await supabase.from('messages').insert(newMessage);
+      const { error } = await supabase.from('messages').insert(newMessage);
 
       if (error) {
-        console.error('Error details:', error);
-        let errorMessage = 'Failed to send message';
+        console.error('Error sending message:', error);
         
-        if (error.message.includes('row-level-security')) {
-          errorMessage = 'Permission denied. Please try logging out and back in.';
-        }
-
-        toast({
-          title: "Error",
-          description: errorMessage,
-          variant: "destructive"
-        });
-
         if (error.code === '42501' || error.message.includes('policy')) {
           setIsAuthModalOpen(true);
         }
-      } else {
-        console.log('Message sent successfully:', data);
       }
     } catch (error) {
       console.error('Unexpected error:', error);
-      toast({
-        title: "Error",
-        description: "An unexpected error occurred",
-        variant: "destructive"
-      });
     }
   };
 

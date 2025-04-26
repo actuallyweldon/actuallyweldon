@@ -8,7 +8,6 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { useToast } from '@/hooks/use-toast';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -27,16 +26,11 @@ const AuthModal: React.FC<AuthModalProps> = ({
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) {
-      toast({
-        title: 'Error',
-        description: 'Please fill in all fields',
-        variant: 'destructive',
-      });
+      console.error('Please fill in all fields');
       return;
     }
 
@@ -51,11 +45,6 @@ const AuthModal: React.FC<AuthModalProps> = ({
       setEmail('');
       setPassword('');
     } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Authentication failed. Please try again.',
-        variant: 'destructive',
-      });
       console.error('Auth error:', error);
     } finally {
       setIsLoading(false);

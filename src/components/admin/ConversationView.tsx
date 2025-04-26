@@ -7,7 +7,6 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { supabase } from '@/integrations/supabase/client';
 import { Message } from '@/types/message';
-import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface ConversationViewProps {
@@ -22,7 +21,6 @@ const ConversationView: React.FC<ConversationViewProps> = ({ userId, onBack }) =
   const [userInfo, setUserInfo] = useState<{ username?: string }>({});
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'connecting'>('connecting');
   const [error, setError] = useState<string | null>(null);
-  const { toast } = useToast();
 
   useEffect(() => {
     const fetchUserInfo = async () => {
@@ -64,11 +62,6 @@ const ConversationView: React.FC<ConversationViewProps> = ({ userId, onBack }) =
         if (error) {
           console.error('Error fetching messages:', error);
           setError(`Could not load messages: ${error.message}`);
-          toast({
-            title: "Error",
-            description: "Could not load messages",
-            variant: "destructive"
-          });
           return;
         }
 
@@ -87,11 +80,6 @@ const ConversationView: React.FC<ConversationViewProps> = ({ userId, onBack }) =
       } catch (error) {
         console.error('Error processing messages:', error);
         setError(`Could not process messages: ${error instanceof Error ? error.message : 'Unknown error'}`);
-        toast({
-          title: "Error",
-          description: "Could not process messages",
-          variant: "destructive"
-        });
       } finally {
         setLoading(false);
       }
@@ -144,7 +132,7 @@ const ConversationView: React.FC<ConversationViewProps> = ({ userId, onBack }) =
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [userId, toast]);
+  }, [userId]);
 
   const handleSendMessage = async (content: string) => {
     try {
@@ -163,25 +151,10 @@ const ConversationView: React.FC<ConversationViewProps> = ({ userId, onBack }) =
       if (insertError) {
         console.error('Error sending message:', insertError);
         setError(`Failed to send message: ${insertError.message}`);
-        toast({
-          title: "Error",
-          description: `Failed to send message: ${insertError.message}`,
-          variant: "destructive"
-        });
-      } else {
-        toast({
-          title: "Success",
-          description: "Message sent",
-        });
       }
     } catch (error) {
       console.error('Error sending message:', error);
       setError(`Failed to send message: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      toast({
-        title: "Error",
-        description: "Failed to send message",
-        variant: "destructive"
-      });
     }
   };
 
