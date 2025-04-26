@@ -84,11 +84,16 @@ export function useSupabaseAuth() {
     }
   };
 
-  const signUp = async (email: string, password: string) => {
+  const signUp = async (email: string, password: string, name: string) => {
     try {
       const { error } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          data: {
+            name: name, // This will be used by the handle_new_user trigger
+          }
+        }
       });
       if (error) throw error;
       console.log('Account created. Please check your email for verification link');
