@@ -1,11 +1,10 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Settings } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import ProfileDropdown from './ProfileDropdown';
 
-interface ChatHeaderProps {
+interface ChatHeaderProps { 
   onAuthClick: () => void;
   isAuthenticated: boolean;
   isAdmin?: boolean;
@@ -23,15 +22,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   return (
     <div className="flex justify-between items-center p-4 bg-black border-b border-gray-800">
       <div className="w-10">
-        {isAuthenticated && (
-          <Button 
-            variant="ghost" 
-            size="icon"
-            className="text-imessage-header"
-          >
-            <Settings className="h-6 w-6" />
-          </Button>
-        )}
+        {/* Removed settings icon */}
       </div>
       <h1 className="text-imessage-header font-semibold text-center flex gap-2 items-center">
         actuallyweldon
@@ -48,6 +39,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
         onAuthClick={onAuthClick}
         onSignOut={onSignOut}
         email={email}
+        isAdmin={isAdmin}
       />
     </div>
   );
