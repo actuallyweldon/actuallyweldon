@@ -31,22 +31,22 @@ export const useMessages = (userId: string | null, sessionId: string | null) => 
           .select('*');
 
         if (userId) {
-          // For authenticated users
+          // For authenticated users, get both their messages and admin replies
           console.log('Fetching messages for authenticated user:', userId);
           query.or(
             `sender_id.eq.${userId},` +
-            `and(is_admin.eq.true,recipient_id.eq.${userId})`
-          );
+            `recipient_id.eq.${userId}`
+          ).order('created_at', { ascending: true });
         } else if (sessionId) {
-          // For anonymous users, fetch both their messages and admin replies
+          // For anonymous users, get both their messages and admin replies
           console.log('Fetching messages for anonymous session:', sessionId);
           query.or(
             `session_id.eq.${sessionId},` +
-            `and(is_admin.eq.true,recipient_id.eq.${sessionId})`
-          );
+            `recipient_id.eq.${sessionId}`
+          ).order('created_at', { ascending: true });
         }
 
-        const { data, error: fetchError } = await query.order('created_at', { ascending: true });
+        const { data, error: fetchError } = await query;
 
         if (fetchError) {
           console.error('Error fetching messages:', fetchError);

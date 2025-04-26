@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -13,7 +12,9 @@ interface UserInfo {
 }
 
 interface Conversation {
+  id: string;
   sender_id: string | null;
+  session_id: string | null;
   last_message: string;
   created_at: string;
   user_info?: UserInfo;
@@ -37,79 +38,69 @@ const ConversationList: React.FC<ConversationListProps> = ({
 
   const fetchConversations = async () => {
     setLoading(true);
+    console.log('Fetching conversations...');
     
     try {
-      const { data: senderData, error: senderError } = await supabase
+      const { data: messageData, error: messageError } = await supabase
         .from('messages')
-        .select('sender_id')
+        .select('*')
+        .or('session_id.is.not.null,sender_id.is.not.null')
         .order('created_at', { ascending: false });
 
-      if (senderError) {
-        console.error('Error fetching sender data:', senderError);
+      if (messageError) {
+        console.error('Error fetching messages:', messageError);
         setLoading(false);
         return;
       }
 
-      if (!senderData?.length) {
+      if (!messageData?.length) {
+        console.log('No messages found');
         setConversations([]);
         setLoading(false);
         return;
       }
 
-      // Filter out null sender_ids to avoid errors
-      const uniqueSenderIds = Array.from(new Set(
-        senderData
-          .filter(item => item.sender_id !== null)
-          .map(item => item.sender_id)
-      ));
+      const conversationMap = new Map<string, Conversation>();
 
-      const conversationsPromises = uniqueSenderIds.map(async (senderId) => {
-        if (!senderId) {
-          console.log('Skipping null senderId');
-          return null;
+      for (const message of messageData) {
+        const conversationId = message.sender_id || message.session_id;
+        if (!conversationId) continue;
+
+        if (!conversationMap.has(conversationId)) {
+          conversationMap.set(conversationId, {
+            id: conversationId,
+            sender_id: message.sender_id,
+            session_id: message.session_id,
+            last_message: message.content,
+            created_at: message.created_at,
+            user_info: undefined
+          });
         }
+      }
 
-        const { data: messageData, error: messageError } = await supabase
-          .from('messages')
-          .select('*')
-          .eq('sender_id', senderId)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .single();
+      const userConversations = Array.from(conversationMap.values()).filter(conv => conv.sender_id);
+      
+      for (const conv of userConversations) {
+        if (conv.sender_id) {
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('username')
+            .eq('id', conv.sender_id)
+            .maybeSingle();
 
-        if (messageError) {
-          console.error(`Error fetching message for sender ${senderId}:`, messageError);
-          return null;
-        }
-
-        const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('username')
-          .eq('id', senderId)
-          .maybeSingle();
-
-        if (profileError) {
-          console.error(`Error fetching profile for sender ${senderId}:`, profileError);
-        }
-
-        return {
-          sender_id: senderId,
-          last_message: messageData.content,
-          created_at: messageData.created_at,
-          user_info: {
-            username: profileData?.username
+          if (profileData) {
+            conv.user_info = { username: profileData.username };
           }
-        };
-      });
+        }
+      }
 
-      const conversationsResults = await Promise.all(conversationsPromises);
-      const validConversations = conversationsResults.filter(conv => conv !== null) as Conversation[];
-
-      validConversations.sort((a, b) => 
-        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      const sortedConversations = Array.from(conversationMap.values()).sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       );
 
-      setConversations(validConversations);
+      console.log(`Found ${sortedConversations.length} conversations`);
+      setConversations(sortedConversations);
+
     } catch (err) {
       console.error('Error processing conversations:', err);
     } finally {
@@ -120,35 +111,45 @@ const ConversationList: React.FC<ConversationListProps> = ({
   useEffect(() => {
     fetchConversations();
 
-    const channel = supabase
-      .channel('admin-messages-updates')
+    const channel = supabase.channel('admin-messages-updates')
       .on('postgres_changes', 
         { event: 'INSERT', schema: 'public', table: 'messages' },
         async (payload) => {
           const newMessage = payload.new as any;
+          console.log('New message received:', newMessage);
           
-          // Skip messages with null sender_id
-          if (!newMessage.sender_id) {
-            console.log('Skipping message with null sender_id');
+          const conversationId = newMessage.sender_id || newMessage.session_id;
+          if (!conversationId) {
+            console.log('Invalid message: no sender_id or session_id');
             return;
           }
           
           try {
-            const { data: profileData } = await supabase
-              .from('profiles')
-              .select('username')
-              .eq('id', newMessage.sender_id)
-              .maybeSingle();
+            let userInfo = undefined;
+            if (newMessage.sender_id) {
+              const { data: profileData } = await supabase
+                .from('profiles')
+                .select('username')
+                .eq('id', newMessage.sender_id)
+                .maybeSingle();
+              
+              if (profileData) {
+                userInfo = { username: profileData.username };
+              }
+            }
             
             setConversations(prev => {
-              const existingIndex = prev.findIndex(c => c.sender_id === newMessage.sender_id);
+              const existingIndex = prev.findIndex(c => 
+                c.id === conversationId
+              );
               
               if (existingIndex >= 0) {
                 const updated = [...prev];
                 updated[existingIndex] = {
                   ...updated[existingIndex],
                   last_message: newMessage.content,
-                  created_at: newMessage.created_at
+                  created_at: newMessage.created_at,
+                  user_info: userInfo || updated[existingIndex].user_info
                 };
                 
                 return updated.sort((a, b) => 
@@ -156,47 +157,18 @@ const ConversationList: React.FC<ConversationListProps> = ({
                 );
               } else {
                 return [{
+                  id: conversationId,
                   sender_id: newMessage.sender_id,
+                  session_id: newMessage.session_id,
                   last_message: newMessage.content,
                   created_at: newMessage.created_at,
-                  user_info: {
-                    username: profileData?.username
-                  }
+                  user_info: userInfo
                 }, ...prev];
               }
             });
           } catch (err) {
             console.error('Error handling real-time message:', err);
           }
-        }
-      )
-      .on('postgres_changes', 
-        { event: 'UPDATE', schema: 'public', table: 'messages' },
-        async (payload) => {
-          const updatedMessage = payload.new as any;
-          
-          // Skip messages with null sender_id
-          if (!updatedMessage.sender_id) {
-            console.log('Skipping updated message with null sender_id');
-            return;
-          }
-          
-          setConversations(prev => {
-            const updatedConversations = [...prev];
-            const existingIndex = updatedConversations.findIndex(
-              c => c.sender_id === updatedMessage.sender_id
-            );
-            
-            if (existingIndex >= 0) {
-              updatedConversations[existingIndex] = {
-                ...updatedConversations[existingIndex],
-                last_message: updatedMessage.content,
-                created_at: updatedMessage.created_at
-              };
-            }
-            
-            return updatedConversations;
-          });
         }
       )
       .subscribe();
@@ -210,10 +182,10 @@ const ConversationList: React.FC<ConversationListProps> = ({
     if (conversation.user_info?.username) {
       return conversation.user_info.username;
     }
-    // Safely handle null sender_id
-    return conversation.sender_id 
-      ? `User ${conversation.sender_id.slice(0, 8)}`
-      : 'Unknown User';
+    if (conversation.sender_id) {
+      return `User ${conversation.sender_id.slice(0, 8)}`;
+    }
+    return `Anonymous ${conversation.session_id?.slice(0, 8)}`;
   };
 
   if (loading) {
@@ -245,9 +217,9 @@ const ConversationList: React.FC<ConversationListProps> = ({
         ) : (
           conversations.map((conversation) => (
             <div
-              key={conversation.sender_id || 'unknown'}
+              key={conversation.id}
               className="p-4 border-b border-gray-800 hover:bg-gray-900 cursor-pointer flex items-center space-x-4"
-              onClick={() => conversation.sender_id ? onSelectUser(conversation.sender_id) : null}
+              onClick={() => onSelectUser(conversation.sender_id || conversation.session_id || '')}
             >
               <Avatar className="h-10 w-10 bg-gray-700">
                 <AvatarFallback className="bg-gray-700 text-white">
