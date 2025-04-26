@@ -1,9 +1,8 @@
-
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { format } from 'date-fns';
-import { Loader2 } from 'lucide-react';
+import { Loader2, UserRound } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface UserInfo {
@@ -32,7 +31,6 @@ const ConversationList: React.FC<ConversationListProps> = ({ onSelectUser }) => 
     setLoading(true);
     
     try {
-      // Get all unique sender_ids with their most recent message
       const { data: senderData, error: senderError } = await supabase
         .from('messages')
         .select('sender_id')
@@ -55,12 +53,9 @@ const ConversationList: React.FC<ConversationListProps> = ({ onSelectUser }) => 
         return;
       }
 
-      // Get unique sender IDs
       const uniqueSenderIds = Array.from(new Set(senderData.map(item => item.sender_id)));
 
-      // For each unique sender, get their most recent message and profile info
       const conversationsPromises = uniqueSenderIds.map(async (senderId) => {
-        // Get the most recent message from this sender
         const { data: messageData, error: messageError } = await supabase
           .from('messages')
           .select('*')
@@ -74,7 +69,6 @@ const ConversationList: React.FC<ConversationListProps> = ({ onSelectUser }) => 
           return null;
         }
 
-        // Get user profile info
         const { data: profileData, error: profileError } = await supabase
           .from('profiles')
           .select('username')
@@ -98,7 +92,6 @@ const ConversationList: React.FC<ConversationListProps> = ({ onSelectUser }) => 
       const conversationsResults = await Promise.all(conversationsPromises);
       const validConversations = conversationsResults.filter(conv => conv !== null) as Conversation[];
 
-      // Sort by most recent
       validConversations.sort((a, b) => 
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       );
@@ -119,7 +112,6 @@ const ConversationList: React.FC<ConversationListProps> = ({ onSelectUser }) => 
   useEffect(() => {
     fetchConversations();
 
-    // Setup WebSocket connection for real-time updates
     const channel = supabase
       .channel('admin-messages-updates')
       .on('postgres_changes', 
@@ -128,7 +120,6 @@ const ConversationList: React.FC<ConversationListProps> = ({ onSelectUser }) => 
           const newMessage = payload.new as any;
           
           try {
-            // Get user profile info for this sender
             const { data: profileData } = await supabase
               .from('profiles')
               .select('username')
@@ -136,11 +127,9 @@ const ConversationList: React.FC<ConversationListProps> = ({ onSelectUser }) => 
               .maybeSingle();
             
             setConversations(prev => {
-              // Check if we already have a conversation with this sender
               const existingIndex = prev.findIndex(c => c.sender_id === newMessage.sender_id);
               
               if (existingIndex >= 0) {
-                // Update existing conversation
                 const updated = [...prev];
                 updated[existingIndex] = {
                   ...updated[existingIndex],
@@ -148,12 +137,10 @@ const ConversationList: React.FC<ConversationListProps> = ({ onSelectUser }) => 
                   created_at: newMessage.created_at
                 };
                 
-                // Sort by most recent
                 return updated.sort((a, b) => 
                   new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
                 );
               } else {
-                // Add new conversation
                 return [{
                   sender_id: newMessage.sender_id,
                   last_message: newMessage.content,
@@ -169,7 +156,6 @@ const ConversationList: React.FC<ConversationListProps> = ({ onSelectUser }) => 
           }
         }
       )
-      // Also listen for updates to messages
       .on('postgres_changes', 
         { event: 'UPDATE', schema: 'public', table: 'messages' },
         async (payload) => {
@@ -193,7 +179,6 @@ const ConversationList: React.FC<ConversationListProps> = ({ onSelectUser }) => 
           });
         }
       )
-      // Listen for connection status
       .subscribe(status => {
         if (status === 'SUBSCRIBED') {
           setConnectionStatus('connected');
@@ -257,26 +242,24 @@ const ConversationList: React.FC<ConversationListProps> = ({ onSelectUser }) => 
           conversations.map((conversation) => (
             <div
               key={conversation.sender_id}
-              className="p-4 border-b border-gray-800 hover:bg-gray-900 cursor-pointer"
+              className="p-4 border-b border-gray-800 hover:bg-gray-900 cursor-pointer flex items-center space-x-4"
               onClick={() => onSelectUser(conversation.sender_id)}
             >
-              <div className="flex items-center space-x-4">
-                <Avatar>
-                  <AvatarFallback>
-                    {getAvatarLetters(conversation)}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-white truncate">
-                    {getUserDisplayName(conversation)}
-                  </p>
-                  <p className="text-sm text-gray-400 truncate">
-                    {conversation.last_message}
-                  </p>
-                </div>
-                <div className="text-xs text-gray-500">
-                  {format(new Date(conversation.created_at), 'MMM d')}
-                </div>
+              <Avatar className="h-10 w-10 bg-gray-700">
+                <AvatarFallback className="bg-gray-700 text-white">
+                  <UserRound className="h-5 w-5" />
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-white truncate">
+                  {getUserDisplayName(conversation)}
+                </p>
+                <p className="text-sm text-gray-400 truncate">
+                  {conversation.last_message}
+                </p>
+              </div>
+              <div className="text-xs text-gray-500">
+                {format(new Date(conversation.created_at), 'MMM d')}
               </div>
             </div>
           ))
