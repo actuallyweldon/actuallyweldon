@@ -29,9 +29,13 @@ const MessageList: React.FC<MessageListProps> = ({ messages, isLoading, targetUs
     );
   }
 
-  // Filter messages by targetUserId if provided (for admin view)
+  // Updated filtering logic to account for recipient_id
   const filteredMessages = targetUserId
-    ? messages.filter(msg => msg.sender_id === targetUserId || (msg.is_admin && msg.sender_id === targetUserId))
+    ? messages.filter(msg => 
+        msg.sender_id === targetUserId || 
+        msg.recipient_id === targetUserId ||
+        (msg.is_admin && msg.sender_id === targetUserId)
+      )
     : messages;
 
   if (filteredMessages.length === 0) {

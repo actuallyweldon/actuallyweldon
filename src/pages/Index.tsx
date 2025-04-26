@@ -106,7 +106,8 @@ const Index = () => {
       const newMessage = {
         content,
         sender_id: user.id,
-        is_admin: false
+        is_admin: false,
+        recipient_id: null  // User messages don't need a recipient_id
       };
 
       const { error } = await supabase.from('messages').insert(newMessage);

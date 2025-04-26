@@ -3,6 +3,7 @@ export interface Message {
   id: string;
   content: string;
   sender_id: string;
+  recipient_id?: string | null;  // Add support for recipient_id
   is_admin: boolean;
   created_at: string;
   
