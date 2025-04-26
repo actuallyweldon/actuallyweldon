@@ -47,7 +47,6 @@ const ConversationView: React.FC<ConversationViewProps> = ({ userId, onBack }) =
     const fetchMessages = async () => {
       setLoading(true);
       try {
-        // Fetch messages for this conversation with better error handling
         const { data, error } = await supabase
           .from('messages')
           .select('*')
@@ -91,14 +90,14 @@ const ConversationView: React.FC<ConversationViewProps> = ({ userId, onBack }) =
     fetchUserInfo();
     fetchMessages();
 
-    // Set up more robust real-time subscriptions with reconnection logic
+    // Set up real-time subscription for new messages
     const channel = supabase
-      .channel(`messages-${userId}-admin`)
+      .channel(`messages-${userId}`)
       .on('postgres_changes', 
         { 
           event: 'INSERT', 
           schema: 'public', 
-          table: 'messages', 
+          table: 'messages',
           filter: `sender_id=eq.${userId}` 
         },
         (payload) => {
@@ -119,7 +118,7 @@ const ConversationView: React.FC<ConversationViewProps> = ({ userId, onBack }) =
         { 
           event: 'INSERT', 
           schema: 'public', 
-          table: 'messages', 
+          table: 'messages',
           filter: `is_admin=eq.true,sender_id=eq.${userId}` 
         },
         (payload) => {
@@ -134,29 +133,6 @@ const ConversationView: React.FC<ConversationViewProps> = ({ userId, onBack }) =
             timestamp: newMessage.created_at
           };
           setMessages(prev => [...prev, formattedMessage]);
-        }
-      )
-      // Also listen for message updates
-      .on('postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'messages',
-          filter: `sender_id=eq.${userId}`
-        },
-        (payload) => {
-          const updatedMessage = payload.new as any;
-          setMessages(prev => 
-            prev.map(msg => 
-              msg.id === updatedMessage.id 
-                ? {
-                    ...msg,
-                    content: updatedMessage.content,
-                    updated_at: updatedMessage.updated_at
-                  }
-                : msg
-            )
-          );
         }
       )
       .subscribe(status => {
@@ -180,6 +156,41 @@ const ConversationView: React.FC<ConversationViewProps> = ({ userId, onBack }) =
     };
   }, [userId, toast]);
 
+  const handleSendMessage = async (content: string) => {
+    try {
+      const newMessage = {
+        content,
+        sender_id: userId,
+        is_admin: true
+      };
+
+      const { error } = await supabase
+        .from('messages')
+        .insert(newMessage);
+
+      if (error) {
+        console.error('Error sending message:', error);
+        toast({
+          title: "Error",
+          description: "Failed to send message",
+          variant: "destructive"
+        });
+      } else {
+        toast({
+          title: "Success",
+          description: "Message sent",
+        });
+      }
+    } catch (error) {
+      console.error('Error sending message:', error);
+      toast({
+        title: "Error",
+        description: "Failed to send message",
+        variant: "destructive"
+      });
+    }
+  };
+
   const getUserDisplayName = () => {
     if (userInfo.username) {
       return userInfo.username;
@@ -194,36 +205,6 @@ const ConversationView: React.FC<ConversationViewProps> = ({ userId, onBack }) =
       return <span className="h-2 w-2 rounded-full bg-red-500 ml-2" title="Disconnected"></span>;
     } else {
       return <span className="h-2 w-2 rounded-full bg-yellow-500 animate-pulse ml-2" title="Connecting..."></span>;
-    }
-  };
-
-  const handleSendMessage = async (content: string) => {
-    try {
-      const newMessage = {
-        content,
-        sender_id: userId, // Keep the original sender_id for admin replies
-        is_admin: true // Mark as admin message
-      };
-
-      const { error } = await supabase
-        .from('messages')
-        .insert(newMessage);
-
-      if (error) {
-        console.error('Error sending message:', error);
-        toast({
-          title: "Error",
-          description: "Failed to send message",
-          variant: "destructive"
-        });
-      }
-    } catch (error) {
-      console.error('Error sending message:', error);
-      toast({
-        title: "Error",
-        description: "Failed to send message",
-        variant: "destructive"
-      });
     }
   };
 
