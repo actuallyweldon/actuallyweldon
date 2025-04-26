@@ -23,7 +23,7 @@ const MessageInput: React.FC<MessageInputProps> = ({ onSendMessage, disabled }) 
   return (
     <form 
       onSubmit={handleSubmit} 
-      className="sticky bottom-0 z-10 flex items-center gap-2 bg-black p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-2px_10px_rgba(0,0,0,0.1)]"
+      className="fixed bottom-0 left-0 right-0 z-20 flex items-center gap-2 bg-black p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-2px_10px_rgba(0,0,0,0.1)]"
     >
       <Input
         type="text"

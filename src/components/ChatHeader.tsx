@@ -19,7 +19,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   email
 }) => {
   return (
-    <div className="sticky top-0 z-10 flex justify-between items-center p-4 bg-black border-b border-gray-800 shadow-md">
+    <div className="fixed top-0 left-0 right-0 z-20 flex justify-between items-center p-4 pt-[max(1rem,env(safe-area-inset-top))] bg-black border-b border-gray-800 shadow-md">
       <div className="w-10">
         {/* Removed settings icon */}
       </div>
