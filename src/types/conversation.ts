@@ -26,3 +26,8 @@ export interface ConversationError {
   originalError?: any;
   timestamp: string;
 }
+
+export interface ToastAction {
+  label: string;
+  onClick: () => void;
+}

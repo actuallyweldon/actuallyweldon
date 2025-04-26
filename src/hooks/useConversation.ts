@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Message } from '@/types/message';
@@ -267,19 +266,17 @@ export const useConversation = (userId: string) => {
         setMessages(prev => prev.filter(msg => msg.id !== pendingId));
         handleError('send', 'Failed to send message', error);
         
-        toast({
+        // Show toast with retry option but without using JSX
+        const { dismiss } = toast({
           title: "Message not sent",
           description: "Tap to retry",
           variant: "destructive",
-          action: (
-            <button 
-              onClick={() => handleSendMessage(content)}
-              className="px-3 py-1 rounded bg-primary text-white text-xs"
-            >
-              Retry
-            </button>
-          ),
+          action: {
+            label: "Retry",
+            onClick: () => handleSendMessage(content)
+          }
         });
+        
         return;
       }
       
