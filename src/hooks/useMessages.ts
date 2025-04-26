@@ -3,12 +3,14 @@ import { useState, useEffect, useCallback } from 'react';
 import { Message, TypingIndicator } from '@/types/message';
 import { supabase } from '@/integrations/supabase/client';
 import { playMessageSound } from '../utils/sound';
+import { useToast } from './use-toast';
 
 export const useMessages = (userId: string | null, sessionId: string | null) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [typingUsers, setTypingUsers] = useState<TypingIndicator[]>([]);
+  const { toast } = useToast();
 
   useEffect(() => {
     if (!sessionId && !userId) {
@@ -111,7 +113,7 @@ export const useMessages = (userId: string | null, sessionId: string | null) => 
     };
   }, [userId, sessionId]);
 
-  const addNewMessage = (newMessage: any) => {
+  const addNewMessage = useCallback((newMessage: any) => {
     const formattedMessage: Message = {
       ...newMessage,
       sender: newMessage.is_admin ? 'admin' : 'user',
@@ -124,33 +126,42 @@ export const useMessages = (userId: string | null, sessionId: string | null) => 
     if (newMessage.sender_id !== userId) {
       playMessageSound();
     }
-  };
+  }, [userId]);
 
   const sendMessage = async (content: string) => {
     try {
       const newMessage = {
         content,
-        sender_id: userId || null,
+        sender_id: sessionId, // Use sessionId as sender_id for anonymous users
         is_admin: false,
         recipient_id: null,
-        session_id: userId ? null : sessionId
+        session_id: sessionId
       };
 
       const { error } = await supabase.from('messages').insert(newMessage);
 
       if (error) {
         console.error('Error sending message:', error);
+        toast({
+          title: "Error",
+          description: "Failed to send message. Please try again.",
+          variant: "destructive"
+        });
         return false;
       }
       
       return true;
     } catch (error) {
       console.error('Unexpected error:', error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive"
+      });
       return false;
     }
   };
 
-  // Track when the user is typing to broadcast to others
   const setTypingStatus = useCallback(async (isTyping: boolean) => {
     const typingChannel = supabase.channel('typing');
     
@@ -162,7 +173,6 @@ export const useMessages = (userId: string | null, sessionId: string | null) => 
     });
   }, [userId, sessionId]);
 
-  // Get typing indicators filtered appropriately
   const getTypingIndicator = () => {
     // For authenticated users, we only want to show when admins are typing
     if (userId) {
