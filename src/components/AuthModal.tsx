@@ -98,7 +98,7 @@ const AuthModal: React.FC<AuthModalProps> = ({
                 });
               }
             }}
-            className="bg-muted p-1 rounded-lg flex" // Added flex to make it side by side
+            className="bg-muted p-1 rounded-lg flex items-center space-x-2" // Added space-x-2 for spacing
           >
             <ToggleGroupItem 
               value="signup" 
@@ -169,3 +169,4 @@ const AuthModal: React.FC<AuthModalProps> = ({
 };
 
 export default AuthModal;
+
