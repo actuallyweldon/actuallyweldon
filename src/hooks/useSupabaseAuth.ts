@@ -8,7 +8,49 @@ export function useSupabaseAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
+  const [adminLoading, setAdminLoading] = useState<boolean>(false);
   const { toast } = useToast();
+
+  // Check admin status whenever user changes
+  useEffect(() => {
+    async function checkAdminStatus() {
+      if (!user) {
+        setIsAdmin(false);
+        return;
+      }
+
+      setAdminLoading(true);
+      try {
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('is_admin')
+          .eq('id', user.id)
+          .single();
+
+        if (error) {
+          console.error('Error fetching admin status:', error);
+          toast({
+            title: 'Error',
+            description: 'Could not check admin status',
+            variant: 'destructive',
+          });
+          setIsAdmin(false);
+        } else {
+          setIsAdmin(!!profile?.is_admin);
+        }
+      } catch (error) {
+        console.error('Error in admin check:', error);
+        setIsAdmin(false);
+      } finally {
+        setAdminLoading(false);
+      }
+    }
+
+    if (user) {
+      checkAdminStatus();
+    }
+  }, [user, toast]);
 
   useEffect(() => {
     // Set up auth state listener FIRST
@@ -17,7 +59,6 @@ export function useSupabaseAuth() {
         setSession(currentSession);
         setUser(currentSession?.user ?? null);
         
-        // Don't make Supabase calls directly in the callback to avoid potential deadlocks
         if (event === 'SIGNED_IN' && currentSession) {
           setTimeout(() => {
             console.log('User signed in:', currentSession.user.email);
@@ -25,6 +66,7 @@ export function useSupabaseAuth() {
         } else if (event === 'SIGNED_OUT') {
           setTimeout(() => {
             console.log('User signed out');
+            setIsAdmin(false);
           }, 0);
         }
       }
@@ -101,7 +143,8 @@ export function useSupabaseAuth() {
   return {
     user,
     session,
-    loading,
+    loading: loading || adminLoading,
+    isAdmin,
     signIn,
     signUp,
     signOut,

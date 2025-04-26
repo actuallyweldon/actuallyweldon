@@ -4,17 +4,21 @@ import { Button } from '@/components/ui/button';
 import { CircleUser, LogOut, Settings } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Link } from 'react-router-dom';
-import { useAdminAuth } from '@/hooks/useAdminAuth';
 
 interface ChatHeaderProps {
   onAuthClick: () => void;
   isAuthenticated: boolean;
+  isAdmin?: boolean;
   onSignOut?: () => void;
 }
 
-const ChatHeader: React.FC<ChatHeaderProps> = ({ onAuthClick, isAuthenticated, onSignOut }) => {
+const ChatHeader: React.FC<ChatHeaderProps> = ({ 
+  onAuthClick, 
+  isAuthenticated, 
+  isAdmin,
+  onSignOut 
+}) => {
   const { toast } = useToast();
-  const { isAdmin } = useAdminAuth();
   
   const handleProfileClick = () => {
     if (isAuthenticated) {

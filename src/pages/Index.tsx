@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import ChatHeader from '../components/ChatHeader';
@@ -6,7 +7,6 @@ import MessageInput from '../components/MessageInput';
 import AuthModal from '../components/AuthModal';
 import { Message } from '@/types/message';
 import { useSupabaseAuth } from '@/hooks/useSupabaseAuth';
-import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { initAudio, playMessageSound } from '../utils/sound';
@@ -14,37 +14,54 @@ import { initAudio, playMessageSound } from '../utils/sound';
 const Index = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const { user, loading: authLoading } = useAdminAuth();
-  const { user: supabaseUser, signIn, signUp, signOut } = useSupabaseAuth();
+  const { user, loading: authLoading, signIn, signUp, signOut, isAdmin } = useSupabaseAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    if (authLoading) return;
+
     const fetchMessages = async () => {
-      const { data, error } = await supabase
-        .from('messages')
-        .select('*')
-        .order('created_at', { ascending: true });
+      try {
+        const { data, error } = await supabase
+          .from('messages')
+          .select('*')
+          .order('created_at', { ascending: true });
 
-      if (error) {
-        console.error('Error fetching messages:', error);
-        return;
+        if (error) {
+          console.error('Error fetching messages:', error);
+          toast({
+            title: "Error",
+            description: "Could not load messages",
+            variant: "destructive"
+          });
+          return;
+        }
+
+        const formattedMessages = (data || []).map((msg): Message => ({
+          ...msg,
+          sender: msg.is_admin ? 'admin' : 'user',
+          timestamp: msg.created_at,
+        }));
+
+        setMessages(formattedMessages);
+      } catch (error) {
+        console.error('Error processing messages:', error);
+        toast({
+          title: "Error",
+          description: "Could not process messages",
+          variant: "destructive"
+        });
+      } finally {
+        setIsLoading(false);
       }
-
-      const formattedMessages = (data || []).map((msg): Message => ({
-        ...msg,
-        sender: msg.is_admin ? 'admin' : 'user',
-        timestamp: msg.created_at,
-      }));
-
-      setMessages(formattedMessages);
-      setIsLoading(false);
     };
 
     fetchMessages();
 
+    // Set up realtime subscription for new messages
     const channel = supabase
-      .channel('public:messages')
+      .channel('public-messages')
       .on('postgres_changes', 
         { event: 'INSERT', schema: 'public', table: 'messages' },
         (payload) => {
@@ -63,6 +80,7 @@ const Index = () => {
       )
       .subscribe();
 
+    // Initialize audio on first user interaction
     const handleUserInteraction = () => {
       initAudio();
       document.removeEventListener('click', handleUserInteraction);
@@ -73,84 +91,41 @@ const Index = () => {
       supabase.removeChannel(channel);
       document.removeEventListener('click', handleUserInteraction);
     };
-  }, [user?.id]);
+  }, [user?.id, authLoading, toast]);
 
   const handleSendMessage = async (content: string) => {
-    const messageId = uuidv4();
-    const timestamp = new Date().toISOString();
-    
     if (!user) {
-      const localMessage: Message = {
-        id: messageId,
-        content,
-        sender_id: 'anonymous',
-        is_admin: false,
-        created_at: timestamp,
-        sender: 'user',
-        timestamp
-      };
-      
-      setMessages(prev => [...prev, localMessage]);
-
-      setTimeout(() => {
-        const adminMessage: Message = {
-          id: uuidv4(),
-          content: getRandomAdminResponse(),
-          sender_id: 'admin',
-          is_admin: true,
-          created_at: new Date().toISOString(),
-          sender: 'admin',
-          timestamp: new Date().toISOString()
-        };
-        setMessages(prev => [...prev, adminMessage]);
-        playMessageSound();
-      }, Math.random() * 2000 + 500);
-      
+      setIsAuthModalOpen(true);
+      toast({
+        title: "Authentication Required",
+        description: "Please sign in or create an account to send messages",
+      });
       return;
     }
 
-    const newMessage = {
-      id: messageId,
-      content,
-      sender_id: user.id,
-      is_admin: false,
-      created_at: timestamp
-    };
+    try {
+      const newMessage = {
+        content,
+        sender_id: user.id,
+        is_admin: false
+      };
 
-    const { error } = await supabase.from('messages').insert(newMessage);
-    if (error) {
+      const { error } = await supabase.from('messages').insert(newMessage);
+      if (error) {
+        toast({
+          title: "Error",
+          description: "Failed to send message",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Error sending message:', error);
       toast({
         title: "Error",
         description: "Failed to send message",
         variant: "destructive"
       });
-      return;
     }
-
-    setTimeout(async () => {
-      const adminResponse = {
-        id: uuidv4(),
-        content: getRandomAdminResponse(),
-        sender_id: user.id,
-        is_admin: true,
-        created_at: new Date().toISOString()
-      };
-
-      await supabase.from('messages').insert(adminResponse);
-    }, Math.random() * 2000 + 500);
-  };
-
-  const getRandomAdminResponse = () => {
-    const responses = [
-      "I'll get back to you soon.",
-      "Thanks for reaching out.",
-      "I'm currently away from my phone.",
-      "I'll respond when I can.",
-      "Got your message!",
-      "I appreciate your message.",
-      "I'll check this out.",
-    ];
-    return responses[Math.floor(Math.random() * responses.length)];
   };
 
   return (
@@ -158,19 +133,24 @@ const Index = () => {
       <ChatHeader 
         onAuthClick={() => setIsAuthModalOpen(true)} 
         isAuthenticated={!!user}
+        isAdmin={isAdmin}
         onSignOut={signOut}
       />
-      <MessageList messages={messages} isLoading={isLoading} />
-      <MessageInput onSendMessage={handleSendMessage} />
+      <MessageList 
+        messages={user ? messages.filter(m => m.sender_id === user.id) : []} 
+        isLoading={isLoading || authLoading} 
+      />
+      <MessageInput 
+        onSendMessage={handleSendMessage}
+        disabled={authLoading} 
+      />
       
-      {!authLoading && !user && (
-        <AuthModal
-          isOpen={isAuthModalOpen}
-          onClose={() => setIsAuthModalOpen(false)}
-          onSignIn={signIn}
-          onSignUp={signUp}
-        />
-      )}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        onSignIn={signIn}
+        onSignUp={signUp}
+      />
     </div>
   );
 };

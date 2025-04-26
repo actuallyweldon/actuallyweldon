@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { format } from 'date-fns';
 import { Loader2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 interface UserInfo {
   email?: string;
@@ -24,70 +25,95 @@ interface ConversationListProps {
 const ConversationList: React.FC<ConversationListProps> = ({ onSelectUser }) => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
 
   useEffect(() => {
     const fetchConversations = async () => {
       setLoading(true);
       
-      // Get the most recent message from each unique sender
-      const { data, error } = await supabase
-        .from('messages')
-        .select('sender_id, content, created_at')
-        .order('created_at', { ascending: false });
+      try {
+        // Get the most recent message from each unique sender with profiles joined
+        const { data, error } = await supabase
+          .from('messages')
+          .select(`
+            sender_id,
+            content,
+            created_at,
+            profiles!inner(username)
+          `)
+          .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Error fetching conversations:', error);
-        setLoading(false);
-        return;
-      }
-
-      // Process the data to get unique conversations by sender_id
-      const uniqueConversations: Conversation[] = [];
-      const processedSenders = new Set();
-
-      for (const message of data || []) {
-        if (!processedSenders.has(message.sender_id)) {
-          const conversation: Conversation = {
-            sender_id: message.sender_id,
-            last_message: message.content,
-            created_at: message.created_at
-          };
-          
-          // Try to fetch user email if this is an authenticated user
-          try {
-            const { data: profileData } = await supabase
-              .from('profiles')
-              .select('username')
-              .eq('id', message.sender_id)
-              .single();
-              
-            if (profileData) {
-              conversation.user_info = {
-                username: profileData.username
-              };
-            }
-          } catch (err) {
-            console.log('No profile found for user', message.sender_id);
-          }
-          
-          uniqueConversations.push(conversation);
-          processedSenders.add(message.sender_id);
+        if (error) {
+          console.error('Error fetching conversations:', error);
+          toast({
+            title: "Error",
+            description: "Could not load conversations",
+            variant: "destructive"
+          });
+          setLoading(false);
+          return;
         }
-      }
 
-      setConversations(uniqueConversations);
-      setLoading(false);
+        // Process the data to get unique conversations by sender_id
+        const uniqueConversations: Conversation[] = [];
+        const processedSenders = new Set();
+
+        for (const message of data || []) {
+          if (!processedSenders.has(message.sender_id)) {
+            const conversation: Conversation = {
+              sender_id: message.sender_id,
+              last_message: message.content,
+              created_at: message.created_at,
+              user_info: {
+                username: message.profiles?.username
+              }
+            };
+            
+            uniqueConversations.push(conversation);
+            processedSenders.add(message.sender_id);
+          }
+        }
+
+        setConversations(uniqueConversations);
+      } catch (err) {
+        console.error('Error processing conversations:', err);
+        toast({
+          title: "Error",
+          description: "Could not process conversation data",
+          variant: "destructive"
+        });
+      } finally {
+        setLoading(false);
+      }
     };
 
     fetchConversations();
 
     // Subscribe to new messages
     const channel = supabase
-      .channel('public:messages')
+      .channel('admin-conversations')
       .on('postgres_changes', 
         { event: 'INSERT', schema: 'public', table: 'messages' },
         async (payload) => {
           const newMessage = payload.new as any;
+          
+          // Get user profile info for this sender
+          let userInfo: UserInfo | undefined;
+          try {
+            const { data: profileData } = await supabase
+              .from('profiles')
+              .select('username')
+              .eq('id', newMessage.sender_id)
+              .single();
+              
+            if (profileData) {
+              userInfo = {
+                username: profileData.username
+              };
+            }
+          } catch (err) {
+            console.log('No profile found for user', newMessage.sender_id);
+          }
           
           setConversations(prev => {
             // Check if we already have a conversation with this sender
@@ -111,7 +137,8 @@ const ConversationList: React.FC<ConversationListProps> = ({ onSelectUser }) => 
               return [{
                 sender_id: newMessage.sender_id,
                 last_message: newMessage.content,
-                created_at: newMessage.created_at
+                created_at: newMessage.created_at,
+                user_info: userInfo
               }, ...prev];
             }
           });
@@ -122,7 +149,7 @@ const ConversationList: React.FC<ConversationListProps> = ({ onSelectUser }) => 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [toast]);
 
   const getUserDisplayName = (conversation: Conversation) => {
     if (conversation.user_info?.username) {

@@ -2,10 +2,10 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
 import AdminLayout from '@/components/admin/AdminLayout';
-import { useAdminAuth } from '@/hooks/useAdminAuth';
+import { useSupabaseAuth } from '@/hooks/useSupabaseAuth';
 
 const AdminPage = () => {
-  const { user, isAdmin, loading } = useAdminAuth();
+  const { user, isAdmin, loading } = useSupabaseAuth();
 
   if (loading) {
     return (
