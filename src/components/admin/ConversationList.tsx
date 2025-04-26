@@ -13,7 +13,7 @@ interface UserInfo {
 }
 
 interface Conversation {
-  sender_id: string;
+  sender_id: string | null;
   last_message: string;
   created_at: string;
   user_info?: UserInfo;
@@ -56,9 +56,19 @@ const ConversationList: React.FC<ConversationListProps> = ({
         return;
       }
 
-      const uniqueSenderIds = Array.from(new Set(senderData.map(item => item.sender_id)));
+      // Filter out null sender_ids to avoid errors
+      const uniqueSenderIds = Array.from(new Set(
+        senderData
+          .filter(item => item.sender_id !== null)
+          .map(item => item.sender_id)
+      ));
 
       const conversationsPromises = uniqueSenderIds.map(async (senderId) => {
+        if (!senderId) {
+          console.log('Skipping null senderId');
+          return null;
+        }
+
         const { data: messageData, error: messageError } = await supabase
           .from('messages')
           .select('*')
@@ -117,6 +127,12 @@ const ConversationList: React.FC<ConversationListProps> = ({
         async (payload) => {
           const newMessage = payload.new as any;
           
+          // Skip messages with null sender_id
+          if (!newMessage.sender_id) {
+            console.log('Skipping message with null sender_id');
+            return;
+          }
+          
           try {
             const { data: profileData } = await supabase
               .from('profiles')
@@ -159,6 +175,12 @@ const ConversationList: React.FC<ConversationListProps> = ({
         async (payload) => {
           const updatedMessage = payload.new as any;
           
+          // Skip messages with null sender_id
+          if (!updatedMessage.sender_id) {
+            console.log('Skipping updated message with null sender_id');
+            return;
+          }
+          
           setConversations(prev => {
             const updatedConversations = [...prev];
             const existingIndex = updatedConversations.findIndex(
@@ -188,7 +210,10 @@ const ConversationList: React.FC<ConversationListProps> = ({
     if (conversation.user_info?.username) {
       return conversation.user_info.username;
     }
-    return `User ${conversation.sender_id.slice(0, 8)}`;
+    // Safely handle null sender_id
+    return conversation.sender_id 
+      ? `User ${conversation.sender_id.slice(0, 8)}`
+      : 'Unknown User';
   };
 
   if (loading) {
@@ -220,9 +245,9 @@ const ConversationList: React.FC<ConversationListProps> = ({
         ) : (
           conversations.map((conversation) => (
             <div
-              key={conversation.sender_id}
+              key={conversation.sender_id || 'unknown'}
               className="p-4 border-b border-gray-800 hover:bg-gray-900 cursor-pointer flex items-center space-x-4"
-              onClick={() => onSelectUser(conversation.sender_id)}
+              onClick={() => conversation.sender_id ? onSelectUser(conversation.sender_id) : null}
             >
               <Avatar className="h-10 w-10 bg-gray-700">
                 <AvatarFallback className="bg-gray-700 text-white">
@@ -249,4 +274,3 @@ const ConversationList: React.FC<ConversationListProps> = ({
 };
 
 export default ConversationList;
-
