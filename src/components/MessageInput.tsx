@@ -7,9 +7,14 @@ import { Send } from 'lucide-react';
 interface MessageInputProps {
   onSendMessage: (content: string) => void;
   disabled?: boolean;
+  placeholder?: string;
 }
 
-const MessageInput: React.FC<MessageInputProps> = ({ onSendMessage, disabled }) => {
+const MessageInput: React.FC<MessageInputProps> = ({ 
+  onSendMessage, 
+  disabled,
+  placeholder = "Message" 
+}) => {
   const [message, setMessage] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -29,7 +34,7 @@ const MessageInput: React.FC<MessageInputProps> = ({ onSendMessage, disabled }) 
         type="text"
         value={message}
         onChange={(e) => setMessage(e.target.value)}
-        placeholder="Message"
+        placeholder={placeholder}
         className="bg-gray-800 border-none text-white rounded-full"
         disabled={disabled}
       />

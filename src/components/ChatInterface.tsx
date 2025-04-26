@@ -3,6 +3,8 @@ import React from 'react';
 import MessageList from './MessageList';
 import MessageInput from './MessageInput';
 import { useMessages } from '@/hooks/useMessages';
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
 
 interface ChatInterfaceProps {
   userId: string | null;
@@ -27,7 +29,12 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   if (error) {
     return (
       <div className="flex items-center justify-center h-full">
-        <p className="text-red-500">Error loading messages. Please try again later.</p>
+        <Alert variant="destructive" className="max-w-md">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            Error loading messages. Please try again later.
+          </AlertDescription>
+        </Alert>
       </div>
     );
   }
@@ -36,11 +43,12 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     <>
       <MessageList 
         messages={messages}
-        isLoading={isLoading} 
+        isLoading={isLoading}
       />
       <MessageInput 
         onSendMessage={handleSendMessage}
-        disabled={!sessionId && !userId} 
+        disabled={!sessionId && !userId}
+        placeholder={!sessionId && !userId ? "Please sign in to send messages" : "Type your message..."}
       />
     </>
   );
