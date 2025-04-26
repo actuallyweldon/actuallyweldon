@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -32,13 +31,16 @@ const ConversationList: React.FC<ConversationListProps> = ({ onSelectUser }) => 
       setLoading(true);
       
       try {
-        // Get the most recent message from each unique sender
+        // Get the most recent message from each unique sender along with their profile data
         const { data: messagesData, error: messagesError } = await supabase
           .from('messages')
           .select(`
             sender_id,
             content,
-            created_at
+            created_at,
+            profiles!messages_sender_id_fkey (
+              username
+            )
           `)
           .order('created_at', { ascending: false });
 
@@ -59,19 +61,12 @@ const ConversationList: React.FC<ConversationListProps> = ({ onSelectUser }) => 
 
         for (const message of messagesData || []) {
           if (!processedSenders.has(message.sender_id)) {
-            // For each unique sender, fetch their profile data separately
-            const { data: profileData } = await supabase
-              .from('profiles')
-              .select('username')
-              .eq('id', message.sender_id)
-              .single();
-              
             const conversation: Conversation = {
               sender_id: message.sender_id,
               last_message: message.content,
               created_at: message.created_at,
               user_info: {
-                username: profileData?.username
+                username: message.profiles?.username
               }
             };
             
@@ -95,31 +90,20 @@ const ConversationList: React.FC<ConversationListProps> = ({ onSelectUser }) => 
 
     fetchConversations();
 
-    // Subscribe to new messages
+    // Subscribe to new messages with optimized real-time updates
     const channel = supabase
-      .channel('admin-conversations')
+      .channel('messages-updates')
       .on('postgres_changes', 
         { event: 'INSERT', schema: 'public', table: 'messages' },
         async (payload) => {
           const newMessage = payload.new as any;
           
           // Get user profile info for this sender
-          let userInfo: UserInfo | undefined;
-          try {
-            const { data: profileData } = await supabase
-              .from('profiles')
-              .select('username')
-              .eq('id', newMessage.sender_id)
-              .single();
-              
-            if (profileData) {
-              userInfo = {
-                username: profileData.username
-              };
-            }
-          } catch (err) {
-            console.log('No profile found for user', newMessage.sender_id);
-          }
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('username')
+            .eq('id', newMessage.sender_id)
+            .single();
           
           setConversations(prev => {
             // Check if we already have a conversation with this sender
@@ -144,7 +128,9 @@ const ConversationList: React.FC<ConversationListProps> = ({ onSelectUser }) => 
                 sender_id: newMessage.sender_id,
                 last_message: newMessage.content,
                 created_at: newMessage.created_at,
-                user_info: userInfo
+                user_info: {
+                  username: profileData?.username
+                }
               }, ...prev];
             }
           });
