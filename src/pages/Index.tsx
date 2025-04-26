@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import ChatHeader from '../components/ChatHeader';
@@ -7,6 +6,7 @@ import MessageInput from '../components/MessageInput';
 import AuthModal from '../components/AuthModal';
 import { Message } from '@/types/message';
 import { useSupabaseAuth } from '@/hooks/useSupabaseAuth';
+import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { initAudio, playMessageSound } from '../utils/sound';
@@ -14,7 +14,8 @@ import { initAudio, playMessageSound } from '../utils/sound';
 const Index = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const { user, signIn, signUp, signOut } = useSupabaseAuth();
+  const { user, loading: authLoading } = useAdminAuth();
+  const { user: supabaseUser, signIn, signUp, signOut } = useSupabaseAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
 
@@ -165,12 +166,14 @@ const Index = () => {
       <MessageList messages={messages} isLoading={isLoading} />
       <MessageInput onSendMessage={handleSendMessage} />
       
-      <AuthModal
-        isOpen={isAuthModalOpen}
-        onClose={() => setIsAuthModalOpen(false)}
-        onSignIn={signIn}
-        onSignUp={signUp}
-      />
+      {!authLoading && !user && (
+        <AuthModal
+          isOpen={isAuthModalOpen}
+          onClose={() => setIsAuthModalOpen(false)}
+          onSignIn={signIn}
+          onSignUp={signUp}
+        />
+      )}
     </div>
   );
 };

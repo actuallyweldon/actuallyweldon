@@ -1,8 +1,10 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { CircleUser, LogOut } from 'lucide-react';
+import { CircleUser, LogOut, Settings } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { Link } from 'react-router-dom';
+import { useAdminAuth } from '@/hooks/useAdminAuth';
 
 interface ChatHeaderProps {
   onAuthClick: () => void;
@@ -12,6 +14,7 @@ interface ChatHeaderProps {
 
 const ChatHeader: React.FC<ChatHeaderProps> = ({ onAuthClick, isAuthenticated, onSignOut }) => {
   const { toast } = useToast();
+  const { isAdmin, loading } = useAdminAuth();
   
   const handleProfileClick = () => {
     if (isAuthenticated) {
@@ -38,17 +41,34 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({ onAuthClick, isAuthenticated, o
           </Button>
         )}
       </div>
-      <h1 className="text-imessage-header font-semibold text-center">
+      <h1 className="text-imessage-header font-semibold text-center flex gap-2 items-center">
         actuallyweldon
+        {isAdmin && !loading && (
+          <Link to="/admin">
+            <Button variant="outline" size="sm" className="text-xs">
+              Admin Dashboard
+            </Button>
+          </Link>
+        )}
       </h1>
-      <Button 
-        variant="ghost" 
-        size="icon" 
-        className="text-imessage-header"
-        onClick={handleProfileClick}
-      >
-        <CircleUser className="h-6 w-6" />
-      </Button>
+      {isAuthenticated ? (
+        <Button 
+          variant="ghost" 
+          size="icon"
+          className="text-imessage-header"
+        >
+          <Settings className="h-6 w-6" />
+        </Button>
+      ) : (
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className="text-imessage-header"
+          onClick={handleProfileClick}
+        >
+          <CircleUser className="h-6 w-6" />
+        </Button>
+      )}
     </div>
   );
 };
