@@ -11,6 +11,22 @@ export const useMessages = (userId: string | null, sessionId: string | null) => 
   const [typingUsers, setTypingUsers] = useState<TypingIndicator[]>([]);
   const { toast } = useToast();
 
+  const addNewMessage = useCallback((newMessage: any) => {
+    console.log('Processing new message:', newMessage);
+    const formattedMessage: Message = {
+      ...newMessage,
+      sender: newMessage.is_admin ? 'admin' : 'user',
+      timestamp: newMessage.created_at
+    };
+    
+    setMessages((current) => [...current, formattedMessage]);
+    
+    if (newMessage.sender_id !== userId) {
+      console.log('Playing message sound for incoming message');
+      playMessageSound();
+    }
+  }, [userId]);
+
   useEffect(() => {
     if (!sessionId && !userId) {
       console.log('No session or user ID provided, skipping messages fetch');
@@ -121,31 +137,15 @@ export const useMessages = (userId: string | null, sessionId: string | null) => 
     };
   }, [userId, sessionId]);
 
-  const addNewMessage = useCallback((newMessage: any) => {
-    console.log('Processing new message:', newMessage);
-    const formattedMessage: Message = {
-      ...newMessage,
-      sender: newMessage.is_admin ? 'admin' : 'user',
-      timestamp: newMessage.created_at
-    };
-    
-    setMessages((current) => [...current, formattedMessage]);
-    
-    if (newMessage.sender_id !== userId) {
-      console.log('Playing message sound for incoming message');
-      playMessageSound();
-    }
-  }, [userId]);
-
   const sendMessage = async (content: string) => {
     console.log('Attempting to send message:', { content, userId, sessionId });
     try {
       const newMessage = {
         content,
-        sender_id: sessionId,
+        sender_id: userId || sessionId,
         is_admin: false,
         recipient_id: null,
-        session_id: sessionId
+        session_id: userId ? null : sessionId
       };
 
       console.log('Sending message payload:', newMessage);
