@@ -23,8 +23,10 @@ export const useMessages = (userId: string | null, sessionId: string | null) => 
           .select('*');
 
         if (userId) {
+          // For authenticated users, show their messages and admin responses
           query.or(`sender_id.eq.${userId},and(is_admin.eq.true,recipient_id.eq.${userId})`);
-        } else {
+        } else if (sessionId) {
+          // For anonymous users, only show messages from their session
           query.eq('session_id', sessionId);
         }
 
@@ -51,6 +53,7 @@ export const useMessages = (userId: string | null, sessionId: string | null) => 
 
     fetchMessages();
 
+    // Set up real-time listener for new messages
     const channel = supabase
       .channel('public-messages')
       .on('postgres_changes', 
@@ -58,20 +61,12 @@ export const useMessages = (userId: string | null, sessionId: string | null) => 
         (payload) => {
           const newMessage = payload.new as any;
           
-          if (userId && newMessage.sender_id === userId || 
-              !userId && newMessage.session_id === sessionId ||
-              newMessage.is_admin && (!newMessage.recipient_id || (userId && newMessage.recipient_id === userId))) {
-            
-            const formattedMessage: Message = {
-              ...newMessage,
-              sender: newMessage.is_admin ? 'admin' : 'user',
-              timestamp: newMessage.created_at
-            };
-            
-            setMessages((current) => [...current, formattedMessage]);
-            if (newMessage.sender_id !== userId) {
-              playMessageSound();
-            }
+          // Check if the message belongs to the current user/session
+          if (userId && (newMessage.sender_id === userId || 
+              (newMessage.is_admin && (!newMessage.recipient_id || newMessage.recipient_id === userId)))) {
+            addNewMessage(newMessage);
+          } else if (!userId && newMessage.session_id === sessionId) {
+            addNewMessage(newMessage);
           }
         }
       )
@@ -81,6 +76,21 @@ export const useMessages = (userId: string | null, sessionId: string | null) => 
       supabase.removeChannel(channel);
     };
   }, [userId, sessionId]);
+
+  const addNewMessage = (newMessage: any) => {
+    const formattedMessage: Message = {
+      ...newMessage,
+      sender: newMessage.is_admin ? 'admin' : 'user',
+      timestamp: newMessage.created_at
+    };
+    
+    setMessages((current) => [...current, formattedMessage]);
+    
+    // Play sound for incoming messages from others
+    if (newMessage.sender_id !== userId) {
+      playMessageSound();
+    }
+  };
 
   const sendMessage = async (content: string) => {
     try {
