@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -188,15 +189,7 @@ const ConversationList: React.FC<ConversationListProps> = ({
           });
         }
       )
-      .subscribe(status => {
-        if (status === 'SUBSCRIBED') {
-          setConnectionStatus('connected');
-        } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
-          setConnectionStatus('disconnected');
-        } else {
-          setConnectionStatus('connecting');
-        }
-      });
+      .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
