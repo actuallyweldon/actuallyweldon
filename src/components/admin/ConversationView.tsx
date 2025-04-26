@@ -19,6 +19,7 @@ const ConversationView: React.FC<ConversationViewProps> = ({ userId, onBack }) =
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
   const [userInfo, setUserInfo] = useState<{ username?: string }>({});
+  const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'connecting'>('connecting');
   const { toast } = useToast();
 
   useEffect(() => {
@@ -28,7 +29,7 @@ const ConversationView: React.FC<ConversationViewProps> = ({ userId, onBack }) =
           .from('profiles')
           .select('username')
           .eq('id', userId)
-          .single();
+          .maybeSingle();
 
         if (error) {
           console.error('Error fetching user profile:', error);
@@ -46,6 +47,7 @@ const ConversationView: React.FC<ConversationViewProps> = ({ userId, onBack }) =
     const fetchMessages = async () => {
       setLoading(true);
       try {
+        // Fetch messages for this conversation with better error handling
         const { data, error } = await supabase
           .from('messages')
           .select('*')
@@ -59,7 +61,10 @@ const ConversationView: React.FC<ConversationViewProps> = ({ userId, onBack }) =
             description: "Could not load messages",
             variant: "destructive"
           });
-        } else {
+          return;
+        }
+
+        if (data) {
           const formattedMessages = data.map((msg): Message => ({
             id: msg.id,
             content: msg.content,
@@ -86,9 +91,9 @@ const ConversationView: React.FC<ConversationViewProps> = ({ userId, onBack }) =
     fetchUserInfo();
     fetchMessages();
 
-    // Subscribe to new messages for this user conversation
+    // Set up more robust real-time subscriptions with reconnection logic
     const channel = supabase
-      .channel(`messages-${userId}`)
+      .channel(`messages-${userId}-admin`)
       .on('postgres_changes', 
         { 
           event: 'INSERT', 
@@ -131,7 +136,44 @@ const ConversationView: React.FC<ConversationViewProps> = ({ userId, onBack }) =
           setMessages(prev => [...prev, formattedMessage]);
         }
       )
-      .subscribe();
+      // Also listen for message updates
+      .on('postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'messages',
+          filter: `sender_id=eq.${userId}`
+        },
+        (payload) => {
+          const updatedMessage = payload.new as any;
+          setMessages(prev => 
+            prev.map(msg => 
+              msg.id === updatedMessage.id 
+                ? {
+                    ...msg,
+                    content: updatedMessage.content,
+                    updated_at: updatedMessage.updated_at
+                  }
+                : msg
+            )
+          );
+        }
+      )
+      .subscribe(status => {
+        if (status === 'SUBSCRIBED') {
+          setConnectionStatus('connected');
+        } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
+          setConnectionStatus('disconnected');
+          
+          // Auto-reconnect after delay
+          setTimeout(() => {
+            channel.subscribe();
+            setConnectionStatus('connecting');
+          }, 5000);
+        } else {
+          setConnectionStatus('connecting');
+        }
+      });
 
     return () => {
       supabase.removeChannel(channel);
@@ -143,6 +185,16 @@ const ConversationView: React.FC<ConversationViewProps> = ({ userId, onBack }) =
       return userInfo.username;
     }
     return `User ${userId.slice(0, 8)}`;
+  };
+
+  const getConnectionStatusIndicator = () => {
+    if (connectionStatus === 'connected') {
+      return <span className="h-2 w-2 rounded-full bg-green-500 ml-2" title="Connected"></span>;
+    } else if (connectionStatus === 'disconnected') {
+      return <span className="h-2 w-2 rounded-full bg-red-500 ml-2" title="Disconnected"></span>;
+    } else {
+      return <span className="h-2 w-2 rounded-full bg-yellow-500 animate-pulse ml-2" title="Connecting..."></span>;
+    }
   };
 
   const handleSendMessage = async (content: string) => {
@@ -188,10 +240,11 @@ const ConversationView: React.FC<ConversationViewProps> = ({ userId, onBack }) =
             <ArrowLeft className="h-6 w-6" />
           </Button>
         )}
-        <div>
+        <div className="flex items-center">
           <h2 className="text-lg font-semibold text-white">
             Chat with {getUserDisplayName()}
           </h2>
+          {getConnectionStatusIndicator()}
         </div>
       </div>
       <div className="flex-1 overflow-y-auto">
