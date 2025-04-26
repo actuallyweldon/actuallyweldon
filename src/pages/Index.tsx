@@ -4,7 +4,7 @@ import ChatHeader from '../components/ChatHeader';
 import MessageList from '../components/MessageList';
 import MessageInput from '../components/MessageInput';
 import AuthModal from '../components/AuthModal';
-import { Message } from '../types/message';
+import { Message } from '@/types/message';
 import { useSupabaseAuth } from '@/hooks/useSupabaseAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -29,20 +29,31 @@ const Index = () => {
         return;
       }
 
-      setMessages(data || []);
+      const formattedMessages = (data || []).map((msg): Message => ({
+        ...msg,
+        sender: msg.is_admin ? 'admin' : 'user',
+        timestamp: msg.created_at,
+      }));
+
+      setMessages(formattedMessages);
       setIsLoading(false);
     };
 
     fetchMessages();
 
-    // Subscribe to new messages
     const channel = supabase
       .channel('public:messages')
       .on('postgres_changes', 
         { event: 'INSERT', schema: 'public', table: 'messages' },
         (payload) => {
-          const newMessage = payload.new as Message;
-          setMessages((current) => [...current, newMessage]);
+          const newMessage = payload.new as any;
+          const formattedMessage: Message = {
+            ...newMessage,
+            sender: newMessage.is_admin ? 'admin' : 'user',
+            timestamp: newMessage.created_at
+          };
+          
+          setMessages((current) => [...current, formattedMessage]);
           if (newMessage.sender_id !== user?.id) {
             playMessageSound();
           }
@@ -50,7 +61,6 @@ const Index = () => {
       )
       .subscribe();
 
-    // Initialize audio on first user interaction
     const handleUserInteraction = () => {
       initAudio();
       document.removeEventListener('click', handleUserInteraction);
@@ -93,7 +103,6 @@ const Index = () => {
       return;
     }
 
-    // Admin response
     setTimeout(async () => {
       const adminResponse = {
         id: uuidv4(),

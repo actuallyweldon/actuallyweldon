@@ -27,9 +27,16 @@ const MessageList: React.FC<MessageListProps> = ({ messages, isLoading }) => {
     );
   }
 
+  // Map messages to format expected by MessageBubble
+  const formattedMessages = messages.map(message => ({
+    ...message,
+    sender: message.is_admin ? 'admin' : 'user',
+    timestamp: message.created_at
+  }));
+
   return (
     <div className="flex-1 overflow-y-auto p-4 space-y-2 bg-imessage-background">
-      {messages.map((message) => (
+      {formattedMessages.map((message) => (
         <MessageBubble key={message.id} message={message} />
       ))}
       <div ref={messagesEndRef} />

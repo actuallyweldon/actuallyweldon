@@ -8,7 +8,7 @@ interface MessageBubbleProps {
 }
 
 const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
-  const isUser = message.sender === 'user';
+  const isUser = !message.is_admin;
   
   return (
     <div className={cn(
@@ -21,7 +21,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
           'text-[10px] opacity-70 mt-1',
           isUser ? 'text-right' : 'text-left'
         )}>
-          {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          {new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
         </div>
       </div>
     </div>
