@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import MessageList from '../MessageList';
@@ -53,7 +54,11 @@ const ConversationView: React.FC<ConversationViewProps> = ({ userId, onBack }) =
         const { data, error } = await supabase
           .from('messages')
           .select('*')
-          .or(`sender_id.eq.${userId},and(is_admin.eq.true,sender_id.eq.${userId})`)
+          .or(
+            `and(sender_id.eq.${userId},recipient_id.is.null),` +
+            `and(is_admin.eq.true,recipient_id.eq.${userId}),` +
+            `and(sender_id.eq.${userId},is_admin.eq.true)`
+          )
           .order('created_at', { ascending: true });
         
         if (error) {
@@ -107,7 +112,7 @@ const ConversationView: React.FC<ConversationViewProps> = ({ userId, onBack }) =
         (payload) => {
           const newMessage = payload.new as any;
           // Only add messages for this specific user conversation
-          if (newMessage.sender_id !== userId && !newMessage.is_admin) return;
+          if (newMessage.recipient_id !== userId && newMessage.sender_id !== userId) return;
 
           const formattedMessage: Message = {
             id: newMessage.id,
@@ -147,12 +152,12 @@ const ConversationView: React.FC<ConversationViewProps> = ({ userId, onBack }) =
   const handleSendMessage = async (content: string) => {
     try {
       setError(null);
-      // Important: We're sending as admin but using the original sender_id
-      // This ensures the message is properly associated with this conversation
+      // We're sending as admin, with the recipient_id set to the user's ID
       const newMessage = {
         content,
         sender_id: userId,
-        is_admin: true
+        is_admin: true,
+        recipient_id: userId
       };
 
       const { error: insertError } = await supabase
