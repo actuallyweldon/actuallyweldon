@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import ChatHeader from '../components/ChatHeader';
@@ -26,6 +25,7 @@ const Index = () => {
         const { data, error } = await supabase
           .from('messages')
           .select('*')
+          .or(`sender_id.eq.${user?.id},and(is_admin.eq.true,recipient_id.eq.${user?.id})`)
           .order('created_at', { ascending: true });
 
         if (error) {
@@ -59,7 +59,6 @@ const Index = () => {
 
     fetchMessages();
 
-    // Set up realtime subscription for new messages
     const channel = supabase
       .channel('public-messages')
       .on('postgres_changes', 
@@ -80,7 +79,6 @@ const Index = () => {
       )
       .subscribe();
 
-    // Initialize audio on first user interaction
     const handleUserInteraction = () => {
       initAudio();
       document.removeEventListener('click', handleUserInteraction);
@@ -130,7 +128,6 @@ const Index = () => {
           variant: "destructive"
         });
 
-        // If we detect an auth error, we can prompt the user to re-authenticate
         if (error.code === '42501' || error.message.includes('policy')) {
           setIsAuthModalOpen(true);
         }
@@ -157,7 +154,7 @@ const Index = () => {
         email={user?.email}
       />
       <MessageList 
-        messages={user ? messages.filter(m => m.sender_id === user.id) : []} 
+        messages={messages}
         isLoading={isLoading || authLoading} 
       />
       <MessageInput 
