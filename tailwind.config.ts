@@ -54,9 +54,10 @@ export default {
 				},
 				imessage: {
 					background: '#000000',
-					user: '#0B84FF',
+					user: '#0A84FF',
 					admin: '#303030',
-					header: '#FFFFFF'
+					header: '#FFFFFF',
+					gray: '#98989D'
 				},
 				sidebar: {
 					DEFAULT: 'hsl(var(--sidebar-background))',

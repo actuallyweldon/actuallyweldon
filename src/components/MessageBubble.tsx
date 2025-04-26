@@ -29,6 +29,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
         onClick={handleMessageClick}
         style={{
           fontSize: '17px',
+          fontWeight: 400,
           lineHeight: '1.3125',
           padding: '12px 16px'
         }}
@@ -41,6 +42,9 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
               'text-[11px] opacity-60 mt-1 transition-opacity duration-200 ease-in-out',
               isFromCurrentUser ? 'text-right' : 'text-left'
             )}
+            style={{
+              color: 'rgba(255, 255, 255, 0.6)'
+            }}
           >
             {new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </div>
