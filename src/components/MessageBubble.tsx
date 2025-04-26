@@ -2,7 +2,6 @@
 import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Message } from '@/types/message';
-import { useSupabaseAuth } from '@/hooks/useSupabaseAuth';
 
 interface MessageBubbleProps {
   message: Message;
@@ -10,10 +9,6 @@ interface MessageBubbleProps {
 
 const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
   const [showTimestamp, setShowTimestamp] = useState(false);
-  const { user } = useSupabaseAuth();
-  
-  // Message is from current user if sender_id matches current user's id
-  const isFromCurrentUser = user?.id === message.sender_id;
   
   const handleMessageClick = () => {
     setShowTimestamp(!showTimestamp);
@@ -22,10 +17,10 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
   return (
     <div className={cn(
       'animate-message-appear flex mb-2',
-      isFromCurrentUser ? 'justify-end' : 'justify-start'
+      message.is_admin ? 'justify-start' : 'justify-end'
     )}>
       <div 
-        className={isFromCurrentUser ? 'message-bubble-user' : 'message-bubble-admin'} 
+        className={message.is_admin ? 'message-bubble-admin' : 'message-bubble-user'} 
         onClick={handleMessageClick}
         style={{
           fontSize: '17px',
@@ -40,7 +35,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
           <div 
             className={cn(
               'text-[11px] opacity-60 mt-1 transition-opacity duration-200 ease-in-out',
-              isFromCurrentUser ? 'text-right' : 'text-left'
+              message.is_admin ? 'text-left' : 'text-right'
             )}
             style={{
               color: 'rgba(255, 255, 255, 0.6)'
@@ -55,3 +50,4 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
 };
 
 export default MessageBubble;
+
