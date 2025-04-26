@@ -4,7 +4,7 @@ import MessageList from './MessageList';
 import MessageInput from './MessageInput';
 import { useMessages } from '@/hooks/useMessages';
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, MessageSquareDashed } from "lucide-react";
 
 interface ChatInterfaceProps {
   userId: string | null;
@@ -17,7 +17,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   sessionId,
   onAuthRequired,
 }) => {
-  const { messages, isLoading, error, sendMessage } = useMessages(userId, sessionId);
+  const { messages, isLoading, error, sendMessage, setTypingStatus, typingUsers } = useMessages(userId, sessionId);
 
   const handleSendMessage = async (content: string) => {
     const success = await sendMessage(content);
@@ -39,14 +39,26 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     );
   }
 
+  const isTypingIndicatorVisible = typingUsers && typingUsers.length > 0;
+
   return (
     <>
       <MessageList 
         messages={messages}
         isLoading={isLoading}
+        showTypingIndicator={isTypingIndicatorVisible}
       />
+      
+      {isTypingIndicatorVisible && (
+        <div className="fixed bottom-[65px] left-4 z-20 py-2 px-4 bg-gray-800 text-white text-sm rounded-full animate-pulse flex items-center">
+          <MessageSquareDashed className="h-4 w-4 mr-2" />
+          {typingUsers.length > 1 ? 'People are typing...' : 'Someone is typing...'}
+        </div>
+      )}
+      
       <MessageInput 
         onSendMessage={handleSendMessage}
+        onTyping={setTypingStatus}
         disabled={!sessionId && !userId}
         placeholder={!sessionId && !userId ? "Please sign in to send messages" : "Type your message..."}
       />

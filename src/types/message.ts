@@ -11,3 +11,10 @@ export interface Message {
   sender: 'user' | 'admin';
   timestamp: string;
 }
+
+export interface TypingIndicator {
+  userId?: string | null;
+  sessionId?: string | null;
+  isTyping: boolean;
+  lastTyped: Date;
+}

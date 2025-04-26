@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import ChatHeader from '../components/ChatHeader';
 import ChatInterface from '../components/ChatInterface';
 import AuthModal from '../components/AuthModal';
@@ -11,6 +11,11 @@ const Index = () => {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const { user, loading: authLoading, signIn, signUp, signOut, isAdmin } = useSupabaseAuth();
   const { sessionId } = useAnonymousSession();
+
+  // Initialize audio on page load
+  useEffect(() => {
+    initAudio();
+  }, []);
 
   return (
     <div className="h-[100dvh] w-full relative overflow-hidden bg-imessage-background">

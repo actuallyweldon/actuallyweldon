@@ -1,6 +1,6 @@
 
-import { useState, useEffect } from 'react';
-import { Message } from '@/types/message';
+import { useState, useEffect, useCallback } from 'react';
+import { Message, TypingIndicator } from '@/types/message';
 import { supabase } from '@/integrations/supabase/client';
 import { playMessageSound } from '../utils/sound';
 
@@ -8,6 +8,7 @@ export const useMessages = (userId: string | null, sessionId: string | null) => 
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const [typingUsers, setTypingUsers] = useState<TypingIndicator[]>([]);
 
   useEffect(() => {
     if (!sessionId && !userId) {
@@ -77,6 +78,39 @@ export const useMessages = (userId: string | null, sessionId: string | null) => 
     };
   }, [userId, sessionId]);
 
+  // Set up a presence channel for typing indicators
+  useEffect(() => {
+    if (!sessionId && !userId) return;
+
+    const typingChannel = supabase.channel('typing');
+    
+    typingChannel
+      .on('presence', { event: 'sync' }, () => {
+        const state = typingChannel.presenceState();
+        const typingData: TypingIndicator[] = [];
+        
+        Object.keys(state).forEach(key => {
+          state[key].forEach((presence: any) => {
+            if (presence.isTyping) {
+              typingData.push({
+                userId: presence.userId,
+                sessionId: presence.sessionId,
+                isTyping: presence.isTyping,
+                lastTyped: new Date(presence.lastTyped)
+              });
+            }
+          });
+        });
+        
+        setTypingUsers(typingData);
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(typingChannel);
+    };
+  }, [userId, sessionId]);
+
   const addNewMessage = (newMessage: any) => {
     const formattedMessage: Message = {
       ...newMessage,
@@ -116,5 +150,35 @@ export const useMessages = (userId: string | null, sessionId: string | null) => 
     }
   };
 
-  return { messages, isLoading, error, sendMessage };
+  // Track when the user is typing to broadcast to others
+  const setTypingStatus = useCallback(async (isTyping: boolean) => {
+    const typingChannel = supabase.channel('typing');
+    
+    await typingChannel.track({
+      userId: userId || undefined,
+      sessionId: userId ? undefined : sessionId,
+      isTyping,
+      lastTyped: new Date().toISOString()
+    });
+  }, [userId, sessionId]);
+
+  // Get typing indicators filtered appropriately
+  const getTypingIndicator = () => {
+    // For authenticated users, we only want to show when admins are typing
+    if (userId) {
+      return typingUsers.filter(user => user.userId !== userId && !user.sessionId);
+    }
+    
+    // For anonymous users, we want to show when admins are typing
+    return typingUsers.filter(user => user.sessionId !== sessionId && !user.sessionId);
+  };
+
+  return { 
+    messages, 
+    isLoading, 
+    error, 
+    sendMessage, 
+    setTypingStatus, 
+    typingUsers: getTypingIndicator() 
+  };
 };

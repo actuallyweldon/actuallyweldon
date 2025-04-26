@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef } from 'react';
 import MessageBubble from './MessageBubble';
 import { Message } from '@/types/message';
@@ -7,9 +8,15 @@ interface MessageListProps {
   messages: Message[];
   isLoading?: boolean;
   targetUserId?: string;
+  showTypingIndicator?: boolean;
 }
 
-const MessageList: React.FC<MessageListProps> = ({ messages, isLoading, targetUserId }) => {
+const MessageList: React.FC<MessageListProps> = ({ 
+  messages, 
+  isLoading, 
+  targetUserId,
+  showTypingIndicator = false
+}) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -18,7 +25,7 @@ const MessageList: React.FC<MessageListProps> = ({ messages, isLoading, targetUs
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [messages, showTypingIndicator]);
 
   if (isLoading) {
     return (
@@ -36,7 +43,7 @@ const MessageList: React.FC<MessageListProps> = ({ messages, isLoading, targetUs
       )
     : messages;
 
-  if (filteredMessages.length === 0) {
+  if (filteredMessages.length === 0 && !showTypingIndicator) {
     return (
       <div className="flex-1 flex items-center justify-center p-4 text-center text-gray-500 bg-imessage-background">
         <p>No messages yet. Start the conversation!</p>
@@ -67,6 +74,15 @@ const MessageList: React.FC<MessageListProps> = ({ messages, isLoading, targetUs
           ))}
         </div>
       ))}
+      
+      {showTypingIndicator && (
+        <div className="flex space-x-1 p-2 mb-3">
+          <div className="w-2 h-2 rounded-full bg-gray-500 animate-pulse" style={{ animationDelay: "0ms" }}></div>
+          <div className="w-2 h-2 rounded-full bg-gray-500 animate-pulse" style={{ animationDelay: "300ms" }}></div>
+          <div className="w-2 h-2 rounded-full bg-gray-500 animate-pulse" style={{ animationDelay: "600ms" }}></div>
+        </div>
+      )}
+      
       <div ref={messagesEndRef} />
     </div>
   );
