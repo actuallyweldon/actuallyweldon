@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -31,16 +32,13 @@ const ConversationList: React.FC<ConversationListProps> = ({ onSelectUser }) => 
       setLoading(true);
       
       try {
-        // Get the most recent message from each unique sender along with their profile data
+        // Get the most recent message from each unique sender
         const { data: messagesData, error: messagesError } = await supabase
           .from('messages')
           .select(`
             sender_id,
             content,
-            created_at,
-            profiles!messages_sender_id_fkey (
-              username
-            )
+            created_at
           `)
           .order('created_at', { ascending: false });
 
@@ -61,12 +59,19 @@ const ConversationList: React.FC<ConversationListProps> = ({ onSelectUser }) => 
 
         for (const message of messagesData || []) {
           if (!processedSenders.has(message.sender_id)) {
+            // For each unique sender, fetch their profile data separately
+            const { data: profileData } = await supabase
+              .from('profiles')
+              .select('username')
+              .eq('id', message.sender_id)
+              .single();
+              
             const conversation: Conversation = {
               sender_id: message.sender_id,
               last_message: message.content,
               created_at: message.created_at,
               user_info: {
-                username: message.profiles?.username
+                username: profileData?.username
               }
             };
             
