@@ -3,10 +3,13 @@ import React, { useState } from 'react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import ConversationList from './ConversationList';
 import ConversationView from './ConversationView';
+import ProfileDropdown from '../ProfileDropdown';
+import { useSupabaseAuth } from '@/hooks/useSupabaseAuth';
 
 const AdminLayout = () => {
   const isMobile = useIsMobile();
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const { user, isAdmin, signOut } = useSupabaseAuth();
 
   const handleSelectUser = (userId: string) => {
     setSelectedUserId(userId);
@@ -19,6 +22,16 @@ const AdminLayout = () => {
   if (isMobile) {
     return (
       <div className="h-screen bg-black">
+        <div className="flex justify-between items-center p-4 border-b border-gray-800">
+          <h1 className="text-white text-lg font-semibold">Admin Dashboard</h1>
+          <ProfileDropdown
+            isAuthenticated={!!user}
+            onAuthClick={() => {}}
+            onSignOut={signOut}
+            email={user?.email}
+            isAdmin={isAdmin}
+          />
+        </div>
         {!selectedUserId ? (
           <ConversationList onSelectUser={handleSelectUser} />
         ) : (
@@ -34,6 +47,16 @@ const AdminLayout = () => {
   return (
     <div className="flex h-screen bg-black">
       <div className="w-[30%] border-r border-gray-800">
+        <div className="flex justify-between items-center p-4 border-b border-gray-800">
+          <h1 className="text-white text-lg font-semibold">Admin Dashboard</h1>
+          <ProfileDropdown
+            isAuthenticated={!!user}
+            onAuthClick={() => {}}
+            onSignOut={signOut}
+            email={user?.email}
+            isAdmin={isAdmin}
+          />
+        </div>
         <ConversationList onSelectUser={handleSelectUser} />
       </div>
       <div className="flex-1">
