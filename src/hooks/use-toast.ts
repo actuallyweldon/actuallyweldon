@@ -5,8 +5,6 @@ import type {
   ToastProps,
 } from "@/components/ui/toast"
 
-import { ToastAction } from "@/types/conversation"
-
 const TOAST_LIMIT = 1
 const TOAST_REMOVE_DELAY = 1000000
 
@@ -14,7 +12,7 @@ type ToasterToast = ToastProps & {
   id: string
   title?: React.ReactNode
   description?: React.ReactNode
-  action?: ToastActionElement | ToastAction
+  action?: ToastActionElement
 }
 
 const actionTypes = {
