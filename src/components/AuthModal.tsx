@@ -80,7 +80,7 @@ const AuthModal: React.FC<AuthModalProps> = ({
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle className="text-center">
-            Welcome
+            actuallyweldon
           </DialogTitle>
         </DialogHeader>
         
