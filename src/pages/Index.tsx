@@ -5,7 +5,6 @@ import ChatHeader from '../components/ChatHeader';
 import MessageList from '../components/MessageList';
 import MessageInput from '../components/MessageInput';
 import AuthModal from '../components/AuthModal';
-import { Message } from '@/types/message';
 import { useSupabaseAuth } from '@/hooks/useSupabaseAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -75,26 +74,51 @@ const Index = () => {
   }, [user?.id]);
 
   const handleSendMessage = async (content: string) => {
+    const messageId = uuidv4();
+    const timestamp = new Date().toISOString();
+    
+    // If user is not signed in, just add the message locally
     if (!user) {
-      toast({
-        title: "Authentication required",
-        description: "Please sign in to send messages",
-        variant: "destructive"
-      });
-      setIsAuthModalOpen(true);
+      const localMessage: Message = {
+        id: messageId,
+        content,
+        sender_id: 'anonymous',
+        is_admin: false,
+        created_at: timestamp,
+        sender: 'user',
+        timestamp
+      };
+      
+      setMessages(prev => [...prev, localMessage]);
+
+      // Add anonymous admin response
+      setTimeout(() => {
+        const adminMessage: Message = {
+          id: uuidv4(),
+          content: getRandomAdminResponse(),
+          sender_id: 'admin',
+          is_admin: true,
+          created_at: new Date().toISOString(),
+          sender: 'admin',
+          timestamp: new Date().toISOString()
+        };
+        setMessages(prev => [...prev, adminMessage]);
+        playMessageSound();
+      }, Math.random() * 2000 + 500);
+      
       return;
     }
 
+    // For signed in users, store in Supabase
     const newMessage = {
-      id: uuidv4(),
+      id: messageId,
       content,
       sender_id: user.id,
       is_admin: false,
-      created_at: new Date().toISOString(),
+      created_at: timestamp
     };
 
     const { error } = await supabase.from('messages').insert(newMessage);
-
     if (error) {
       toast({
         title: "Error",
@@ -110,7 +134,7 @@ const Index = () => {
         content: getRandomAdminResponse(),
         sender_id: user.id,
         is_admin: true,
-        created_at: new Date().toISOString(),
+        created_at: new Date().toISOString()
       };
 
       await supabase.from('messages').insert(adminResponse);
