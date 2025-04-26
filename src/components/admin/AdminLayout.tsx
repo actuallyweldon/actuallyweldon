@@ -22,17 +22,13 @@ const AdminLayout = () => {
   if (isMobile) {
     return (
       <div className="h-screen bg-black">
-        <div className="flex justify-between items-center p-4 border-b border-gray-800">
-          <ProfileDropdown
-            isAuthenticated={!!user}
-            onAuthClick={() => {}}
-            onSignOut={signOut}
-            email={user?.email}
-            isAdmin={isAdmin}
-          />
-        </div>
         {!selectedUserId ? (
-          <ConversationList onSelectUser={handleSelectUser} />
+          <ConversationList 
+            onSelectUser={handleSelectUser}
+            user={user}
+            isAdmin={isAdmin}
+            onSignOut={signOut}
+          />
         ) : (
           <ConversationView 
             userId={selectedUserId} 
@@ -46,16 +42,12 @@ const AdminLayout = () => {
   return (
     <div className="flex h-screen bg-black">
       <div className="w-[30%] border-r border-gray-800">
-        <div className="flex justify-between items-center p-4 border-b border-gray-800">
-          <ProfileDropdown
-            isAuthenticated={!!user}
-            onAuthClick={() => {}}
-            onSignOut={signOut}
-            email={user?.email}
-            isAdmin={isAdmin}
-          />
-        </div>
-        <ConversationList onSelectUser={handleSelectUser} />
+        <ConversationList 
+          onSelectUser={handleSelectUser}
+          user={user}
+          isAdmin={isAdmin}
+          onSignOut={signOut}
+        />
       </div>
       <div className="flex-1">
         {selectedUserId ? (

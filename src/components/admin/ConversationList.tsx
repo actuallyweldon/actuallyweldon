@@ -1,10 +1,11 @@
-
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { format } from 'date-fns';
 import { Loader2, UserRound } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import ProfileDropdown from '../ProfileDropdown';
+import { User } from '@supabase/supabase-js';
 
 interface UserInfo {
   email?: string;
@@ -20,12 +21,19 @@ interface Conversation {
 
 interface ConversationListProps {
   onSelectUser: (userId: string) => void;
+  user: User | null;
+  isAdmin?: boolean;
+  onSignOut?: () => void;
 }
 
-const ConversationList: React.FC<ConversationListProps> = ({ onSelectUser }) => {
+const ConversationList: React.FC<ConversationListProps> = ({ 
+  onSelectUser, 
+  user,
+  isAdmin,
+  onSignOut 
+}) => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
-  const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'connecting'>('connecting');
   const { toast } = useToast();
 
   const fetchConversations = async () => {
@@ -202,23 +210,6 @@ const ConversationList: React.FC<ConversationListProps> = ({ onSelectUser }) => 
     return `User ${conversation.sender_id.slice(0, 8)}`;
   };
 
-  const getAvatarLetters = (conversation: Conversation) => {
-    if (conversation.user_info?.username) {
-      return conversation.user_info.username.slice(0, 2).toUpperCase();
-    }
-    return conversation.sender_id.slice(0, 2).toUpperCase();
-  };
-
-  const getConnectionStatusIndicator = () => {
-    if (connectionStatus === 'connected') {
-      return <span className="h-2 w-2 rounded-full bg-green-500 mr-2" title="Connected"></span>;
-    } else if (connectionStatus === 'disconnected') {
-      return <span className="h-2 w-2 rounded-full bg-red-500 mr-2" title="Disconnected"></span>;
-    } else {
-      return <span className="h-2 w-2 rounded-full bg-yellow-500 animate-pulse mr-2" title="Connecting..."></span>;
-    }
-  };
-
   if (loading) {
     return (
       <div className="h-full flex items-center justify-center">
@@ -229,9 +220,15 @@ const ConversationList: React.FC<ConversationListProps> = ({ onSelectUser }) => 
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
-      <div className="p-4 border-b border-gray-800 flex items-center">
-        {getConnectionStatusIndicator()}
+      <div className="p-4 border-b border-gray-800 flex items-center justify-between">
         <h2 className="text-lg font-semibold text-white">Messages</h2>
+        <ProfileDropdown
+          isAuthenticated={!!user}
+          onAuthClick={() => {}}
+          onSignOut={onSignOut}
+          email={user?.email}
+          isAdmin={isAdmin}
+        />
       </div>
       
       <div className="flex-1 overflow-y-auto">
