@@ -23,8 +23,36 @@ const ConversationView: React.FC<ConversationViewProps> = ({ userId, onBack }) =
   const [userInfo, setUserInfo] = useState<{ username?: string }>({});
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'connecting'>('connecting');
   const [error, setError] = useState<string | null>(null);
+  const [isAnonymous, setIsAnonymous] = useState(false);
+
+  useEffect(() => {
+    const checkUserType = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('id', userId)
+          .single();
+        
+        if (error || !data) {
+          console.log('User ID not found in profiles, assuming anonymous session ID');
+          setIsAnonymous(true);
+        } else {
+          console.log('User ID found in profiles, authenticated user');
+          setIsAnonymous(false);
+        }
+      } catch (error) {
+        console.error('Error checking user type:', error);
+        setIsAnonymous(true);
+      }
+    };
+    
+    checkUserType();
+  }, [userId]);
 
   const fetchUserInfo = async () => {
+    if (isAnonymous) return;
+    
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -50,21 +78,27 @@ const ConversationView: React.FC<ConversationViewProps> = ({ userId, onBack }) =
     setError(null);
     
     try {
-      const { data, error } = await supabase
-        .from('messages')
-        .select('*')
-        .or(
-          `and(sender_id.eq.${userId},recipient_id.is.null),` +
-          `and(is_admin.eq.true,recipient_id.eq.${userId}),` +
-          `and(sender_id.eq.${userId},is_admin.eq.true)`
-        )
-        .order('created_at', { ascending: true });
+      console.log('Fetching messages for:', { userId, isAnonymous });
+      
+      let query = supabase.from('messages').select('*');
+      
+      if (isAnonymous) {
+        query = query.or(`session_id.eq.${userId},recipient_id.eq.${userId}`);
+        console.log('Using session_id query for anonymous user');
+      } else {
+        query = query.or(`sender_id.eq.${userId},recipient_id.eq.${userId}`);
+        console.log('Using sender_id query for authenticated user');
+      }
+      
+      const { data, error } = await query.order('created_at', { ascending: true });
       
       if (error) {
         console.error('Error fetching messages:', error);
         setError(`Could not load messages: ${error.message}`);
         return;
       }
+
+      console.log(`Fetched ${data?.length || 0} messages`);
 
       if (data) {
         const formattedMessages = data.map(formatMessage);
@@ -81,9 +115,14 @@ const ConversationView: React.FC<ConversationViewProps> = ({ userId, onBack }) =
   useEffect(() => {
     fetchUserInfo();
     fetchMessages();
+  }, [userId, isAnonymous]);
 
+  useEffect(() => {
+    const channelName = `messages-${userId}`;
+    console.log(`Setting up realtime channel: ${channelName}`);
+    
     const channel = supabase
-      .channel(`messages-${userId}`)
+      .channel(channelName)
       .on('postgres_changes', 
         { 
           event: 'INSERT', 
@@ -92,8 +131,18 @@ const ConversationView: React.FC<ConversationViewProps> = ({ userId, onBack }) =
         },
         (payload) => {
           const newMessage = payload.new as any;
-          if (newMessage.sender_id !== userId && newMessage.recipient_id !== userId) return;
+          console.log('New message in conversation view:', newMessage);
+          
+          const isRelevant = isAnonymous 
+            ? (newMessage.session_id === userId || newMessage.recipient_id === userId)
+            : (newMessage.sender_id === userId || newMessage.recipient_id === userId);
+            
+          if (!isRelevant) {
+            console.log('Message not relevant for this conversation');
+            return;
+          }
 
+          console.log('Adding new message to conversation');
           const formattedMessage = formatMessage(newMessage);
           setMessages((current) => [...current, formattedMessage]);
         }
@@ -101,6 +150,7 @@ const ConversationView: React.FC<ConversationViewProps> = ({ userId, onBack }) =
       .subscribe(status => {
         if (status === 'SUBSCRIBED') {
           setConnectionStatus('connected');
+          console.log('Realtime connection established');
         } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
           setConnectionStatus('disconnected');
           console.error('Supabase channel disconnected or error:', status);
@@ -115,9 +165,10 @@ const ConversationView: React.FC<ConversationViewProps> = ({ userId, onBack }) =
       });
 
     return () => {
+      console.log('Cleaning up channel:', channelName);
       supabase.removeChannel(channel);
     };
-  }, [userId]);
+  }, [userId, isAnonymous]);
 
   const handleSendMessage = async (content: string) => {
     try {
@@ -157,7 +208,7 @@ const ConversationView: React.FC<ConversationViewProps> = ({ userId, onBack }) =
     if (userInfo.username) {
       return userInfo.username;
     }
-    return `User ${userId.slice(0, 8)}`;
+    return isAnonymous ? `Anonymous ${userId.slice(0, 8)}` : `User ${userId.slice(0, 8)}`;
   };
 
   return (

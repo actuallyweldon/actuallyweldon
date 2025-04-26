@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -44,7 +45,6 @@ const ConversationList: React.FC<ConversationListProps> = ({
       const { data: messageData, error: messageError } = await supabase
         .from('messages')
         .select('*')
-        .or('session_id.is.not.null,sender_id.is.not.null')
         .order('created_at', { ascending: false });
 
       if (messageError) {
@@ -60,16 +60,31 @@ const ConversationList: React.FC<ConversationListProps> = ({
         return;
       }
 
+      console.log('Retrieved messages:', messageData.length);
+
       const conversationMap = new Map<string, Conversation>();
 
+      // Process messages to identify unique conversations
       for (const message of messageData) {
-        const conversationId = message.sender_id || message.session_id;
-        if (!conversationId) continue;
-
-        if (!conversationMap.has(conversationId)) {
-          conversationMap.set(conversationId, {
-            id: conversationId,
+        // Skip admin messages when determining the conversation ID
+        if (message.is_admin) continue;
+        
+        // For authenticated users, use sender_id as conversation ID
+        if (message.sender_id) {
+          conversationMap.set(message.sender_id, {
+            id: message.sender_id,
             sender_id: message.sender_id,
+            session_id: null,
+            last_message: message.content,
+            created_at: message.created_at,
+            user_info: undefined
+          });
+        } 
+        // For anonymous users, use session_id as conversation ID
+        else if (message.session_id) {
+          conversationMap.set(message.session_id, {
+            id: message.session_id,
+            sender_id: null,
             session_id: message.session_id,
             last_message: message.content,
             created_at: message.created_at,
@@ -78,8 +93,26 @@ const ConversationList: React.FC<ConversationListProps> = ({
         }
       }
 
+      // Now process all messages again to update the last message of each conversation
+      for (const message of messageData) {
+        const conversationId = message.sender_id || message.session_id || message.recipient_id;
+        if (!conversationId) continue;
+        
+        const existingConversation = conversationMap.get(conversationId);
+        if (existingConversation) {
+          const messageDate = new Date(message.created_at);
+          const existingDate = new Date(existingConversation.created_at);
+          
+          if (messageDate > existingDate) {
+            existingConversation.last_message = message.content;
+            existingConversation.created_at = message.created_at;
+          }
+        }
+      }
+
       const userConversations = Array.from(conversationMap.values()).filter(conv => conv.sender_id);
       
+      // Fetch user information for authenticated users
       for (const conv of userConversations) {
         if (conv.sender_id) {
           const { data: profileData } = await supabase
@@ -111,16 +144,25 @@ const ConversationList: React.FC<ConversationListProps> = ({
   useEffect(() => {
     fetchConversations();
 
-    const channel = supabase.channel('admin-messages-updates')
+    const channel = supabase.channel('admin-conversations-updates')
       .on('postgres_changes', 
         { event: 'INSERT', schema: 'public', table: 'messages' },
         async (payload) => {
           const newMessage = payload.new as any;
-          console.log('New message received:', newMessage);
+          console.log('New message received in conversation list:', newMessage);
           
-          const conversationId = newMessage.sender_id || newMessage.session_id;
+          let conversationId: string | null = null;
+          
+          if (newMessage.is_admin) {
+            // For admin messages, use the recipient as the conversation ID
+            conversationId = newMessage.recipient_id;
+          } else {
+            // For user messages, use sender_id or session_id as the conversation ID
+            conversationId = newMessage.sender_id || newMessage.session_id;
+          }
+          
           if (!conversationId) {
-            console.log('Invalid message: no sender_id or session_id');
+            console.log('Invalid message: no valid conversation ID found');
             return;
           }
           
@@ -156,14 +198,18 @@ const ConversationList: React.FC<ConversationListProps> = ({
                   new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
                 );
               } else {
-                return [{
-                  id: conversationId,
-                  sender_id: newMessage.sender_id,
-                  session_id: newMessage.session_id,
-                  last_message: newMessage.content,
-                  created_at: newMessage.created_at,
-                  user_info: userInfo
-                }, ...prev];
+                // Only add a new conversation if message is from a user (not admin)
+                if (!newMessage.is_admin) {
+                  return [{
+                    id: conversationId,
+                    sender_id: newMessage.sender_id,
+                    session_id: newMessage.session_id,
+                    last_message: newMessage.content,
+                    created_at: newMessage.created_at,
+                    user_info: userInfo
+                  }, ...prev];
+                }
+                return prev;
               }
             });
           } catch (err) {

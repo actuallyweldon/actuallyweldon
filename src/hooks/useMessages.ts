@@ -23,30 +23,29 @@ export const useMessages = (userId: string | null, sessionId: string | null) => 
 
   useEffect(() => {
     const fetchMessages = async () => {
+      if (!userId && !sessionId) {
+        console.log('No userId or sessionId provided, skipping fetch');
+        setIsLoading(false);
+        return;
+      }
+      
       console.log('Fetching messages for:', { userId, sessionId });
       try {
         setError(null);
-        const query = supabase
-          .from('messages')
-          .select('*');
-
+        
+        let query = supabase.from('messages').select('*');
+        
         if (userId) {
-          // For authenticated users, get both their messages and admin replies
+          // For authenticated users, get both their messages and admin replies to them
           console.log('Fetching messages for authenticated user:', userId);
-          query.or(
-            `sender_id.eq.${userId},` +
-            `recipient_id.eq.${userId}`
-          ).order('created_at', { ascending: true });
+          query = query.or(`sender_id.eq.${userId},recipient_id.eq.${userId}`);
         } else if (sessionId) {
-          // For anonymous users, get both their messages and admin replies
+          // For anonymous users, get both their messages and admin replies to their session
           console.log('Fetching messages for anonymous session:', sessionId);
-          query.or(
-            `session_id.eq.${sessionId},` +
-            `recipient_id.eq.${sessionId}`
-          ).order('created_at', { ascending: true });
+          query = query.or(`session_id.eq.${sessionId},recipient_id.eq.${sessionId}`);
         }
 
-        const { data, error: fetchError } = await query;
+        const { data, error: fetchError } = await query.order('created_at', { ascending: true });
 
         if (fetchError) {
           console.error('Error fetching messages:', fetchError);
@@ -68,8 +67,18 @@ export const useMessages = (userId: string | null, sessionId: string | null) => 
   }, [userId, sessionId]);
 
   const sendMessage = async (content: string) => {
+    if (!content.trim()) {
+      console.log('Trying to send empty message, ignoring');
+      return false;
+    }
+    
     console.log('Attempting to send message:', { content, userId, sessionId });
     try {
+      if (!userId && !sessionId) {
+        console.error('No user ID or session ID available');
+        return false;
+      }
+      
       const newMessage = {
         content,
         sender_id: userId || null,

@@ -11,6 +11,11 @@ export const useRealtimeMessages = (
 ) => {
   const handleNewMessage = useCallback((newMessage: any) => {
     console.log('Processing new message:', newMessage);
+    
+    if (!userId && !sessionId) {
+      console.log('No user ID or session ID available, ignoring message');
+      return;
+    }
 
     // Check if this message is relevant for the current user/session
     const isRelevant = userId 
@@ -28,18 +33,28 @@ export const useRealtimeMessages = (
     const formattedMessage = formatMessage(newMessage);
     onNewMessage(formattedMessage);
     
-    if (newMessage.sender_id !== userId) {
+    const isIncoming = userId 
+      ? newMessage.sender_id !== userId 
+      : !newMessage.session_id || (newMessage.session_id !== sessionId);
+      
+    if (isIncoming) {
       console.log('Playing message sound for incoming message');
       playMessageSound();
     }
   }, [userId, sessionId, onNewMessage]);
 
   useEffect(() => {
-    if (!sessionId && !userId) return;
+    if (!sessionId && !userId) {
+      console.log('No user ID or session ID available, not setting up listener');
+      return;
+    }
 
-    console.log('Setting up real-time listener for:', { userId, sessionId });
+    // Create a unique channel name for each user/session
+    const channelName = `messages-${userId || sessionId}`;
+    console.log('Setting up real-time listener:', { userId, sessionId, channelName });
+    
     const channel = supabase
-      .channel('public-messages')
+      .channel(channelName)
       .on('postgres_changes', 
         { event: 'INSERT', schema: 'public', table: 'messages' },
         (payload) => {
