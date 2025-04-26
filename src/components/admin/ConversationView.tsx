@@ -1,9 +1,9 @@
-
 import React, { useEffect, useState } from 'react';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { ArrowLeft, Loader2, UserRound } from 'lucide-react';
 import MessageList from '../MessageList';
 import MessageInput from '../MessageInput';
 import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { supabase } from '@/integrations/supabase/client';
 import { Message } from '@/types/message';
@@ -100,7 +100,6 @@ const ConversationView: React.FC<ConversationViewProps> = ({ userId, onBack }) =
     fetchUserInfo();
     fetchMessages();
 
-    // Set up real-time subscription for new messages
     const channel = supabase
       .channel(`messages-${userId}`)
       .on('postgres_changes', 
@@ -111,7 +110,6 @@ const ConversationView: React.FC<ConversationViewProps> = ({ userId, onBack }) =
         },
         (payload) => {
           const newMessage = payload.new as any;
-          // Only add messages for this specific user conversation
           if (newMessage.recipient_id !== userId && newMessage.sender_id !== userId) return;
 
           const formattedMessage: Message = {
@@ -134,7 +132,6 @@ const ConversationView: React.FC<ConversationViewProps> = ({ userId, onBack }) =
           setConnectionStatus('disconnected');
           console.error('Supabase channel disconnected or error:', status);
           
-          // Auto-reconnect after delay
           setTimeout(() => {
             channel.subscribe();
             setConnectionStatus('connecting');
@@ -152,7 +149,6 @@ const ConversationView: React.FC<ConversationViewProps> = ({ userId, onBack }) =
   const handleSendMessage = async (content: string) => {
     try {
       setError(null);
-      // We're sending as admin, with the recipient_id set to the user's ID
       const newMessage = {
         content,
         sender_id: userId,
@@ -219,7 +215,12 @@ const ConversationView: React.FC<ConversationViewProps> = ({ userId, onBack }) =
             <ArrowLeft className="h-6 w-6" />
           </Button>
         )}
-        <div className="flex items-center">
+        <div className="flex items-center gap-3">
+          <Avatar className="h-8 w-8 bg-gray-700">
+            <AvatarFallback className="bg-gray-700 text-white">
+              <UserRound className="h-4 w-4" />
+            </AvatarFallback>
+          </Avatar>
           <h2 className="text-lg font-semibold text-white">
             Chat with {getUserDisplayName()}
           </h2>
