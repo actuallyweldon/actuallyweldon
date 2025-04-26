@@ -13,9 +13,11 @@ export const useMessages = (userId: string | null, sessionId: string | null) => 
   const [error, setError] = useState<Error | null>(null);
   const { toast } = useToast();
 
-  useRealtimeMessages(userId, sessionId, (message) => {
+  const addNewMessage = (message: Message) => {
     setMessages((current) => [...current, message]);
-  });
+  };
+
+  useRealtimeMessages(userId, sessionId, addNewMessage);
 
   const { setTypingStatus, typingUsers } = useTypingIndicators(userId, sessionId);
 
