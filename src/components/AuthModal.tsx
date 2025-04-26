@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import {
   Dialog,
@@ -97,7 +98,7 @@ const AuthModal: React.FC<AuthModalProps> = ({
                 });
               }
             }}
-            className="bg-muted p-1 rounded-lg"
+            className="bg-muted p-1 rounded-lg flex" // Added flex to make it side by side
           >
             <ToggleGroupItem 
               value="signup" 
