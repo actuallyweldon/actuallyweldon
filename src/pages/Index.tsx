@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import ChatHeader from '../components/ChatHeader';
@@ -102,6 +103,8 @@ const Index = () => {
       return;
     }
 
+    console.log('Attempting to send message with user:', user.id);
+
     try {
       const newMessage = {
         content,
@@ -110,19 +113,35 @@ const Index = () => {
         recipient_id: null  // User messages don't need a recipient_id
       };
 
-      const { error } = await supabase.from('messages').insert(newMessage);
+      console.log('Sending message:', newMessage);
+      const { data, error } = await supabase.from('messages').insert(newMessage);
+
       if (error) {
+        console.error('Error details:', error);
+        let errorMessage = 'Failed to send message';
+        
+        if (error.message.includes('row-level-security')) {
+          errorMessage = 'Permission denied. Please try logging out and back in.';
+        }
+
         toast({
           title: "Error",
-          description: "Failed to send message",
+          description: errorMessage,
           variant: "destructive"
         });
+
+        // If we detect an auth error, we can prompt the user to re-authenticate
+        if (error.code === '42501' || error.message.includes('policy')) {
+          setIsAuthModalOpen(true);
+        }
+      } else {
+        console.log('Message sent successfully:', data);
       }
     } catch (error) {
-      console.error('Error sending message:', error);
+      console.error('Unexpected error:', error);
       toast({
         title: "Error",
-        description: "Failed to send message",
+        description: "An unexpected error occurred",
         variant: "destructive"
       });
     }
