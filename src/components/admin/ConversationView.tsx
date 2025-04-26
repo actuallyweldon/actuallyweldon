@@ -8,6 +8,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { supabase } from '@/integrations/supabase/client';
 import { Message } from '@/types/message';
 import { useToast } from '@/hooks/use-toast';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface ConversationViewProps {
   userId: string;
@@ -20,6 +21,7 @@ const ConversationView: React.FC<ConversationViewProps> = ({ userId, onBack }) =
   const [loading, setLoading] = useState(true);
   const [userInfo, setUserInfo] = useState<{ username?: string }>({});
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'connecting'>('connecting');
+  const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -46,6 +48,8 @@ const ConversationView: React.FC<ConversationViewProps> = ({ userId, onBack }) =
 
     const fetchMessages = async () => {
       setLoading(true);
+      setError(null);
+      
       try {
         const { data, error } = await supabase
           .from('messages')
@@ -55,6 +59,7 @@ const ConversationView: React.FC<ConversationViewProps> = ({ userId, onBack }) =
         
         if (error) {
           console.error('Error fetching messages:', error);
+          setError(`Could not load messages: ${error.message}`);
           toast({
             title: "Error",
             description: "Could not load messages",
@@ -77,6 +82,7 @@ const ConversationView: React.FC<ConversationViewProps> = ({ userId, onBack }) =
         }
       } catch (error) {
         console.error('Error fetching messages:', error);
+        setError(`Could not load messages: ${error instanceof Error ? error.message : 'Unknown error'}`);
         toast({
           title: "Error",
           description: "Could not load messages",
@@ -90,7 +96,7 @@ const ConversationView: React.FC<ConversationViewProps> = ({ userId, onBack }) =
     fetchUserInfo();
     fetchMessages();
 
-    // Set up real-time subscription for new messages
+    // Set up real-time subscription for new messages with fixed filter syntax
     const channel = supabase
       .channel(`messages-${userId}`)
       .on('postgres_changes', 
@@ -114,15 +120,19 @@ const ConversationView: React.FC<ConversationViewProps> = ({ userId, onBack }) =
           setMessages(prev => [...prev, formattedMessage]);
         }
       )
+      // Fix the filter syntax for admin messages
       .on('postgres_changes', 
         { 
           event: 'INSERT', 
           schema: 'public', 
           table: 'messages',
-          filter: `is_admin=eq.true,sender_id=eq.${userId}` 
+          filter: `is_admin=eq.true` 
         },
         (payload) => {
           const newMessage = payload.new as any;
+          // Only add messages for this specific user conversation
+          if (newMessage.sender_id !== userId) return;
+
           const formattedMessage: Message = {
             id: newMessage.id,
             content: newMessage.content,
@@ -140,6 +150,7 @@ const ConversationView: React.FC<ConversationViewProps> = ({ userId, onBack }) =
           setConnectionStatus('connected');
         } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
           setConnectionStatus('disconnected');
+          console.error('Supabase channel disconnected or error:', status);
           
           // Auto-reconnect after delay
           setTimeout(() => {
@@ -158,21 +169,25 @@ const ConversationView: React.FC<ConversationViewProps> = ({ userId, onBack }) =
 
   const handleSendMessage = async (content: string) => {
     try {
+      setError(null);
+      // Important: We're sending as admin but using the original sender_id
+      // This ensures the message is properly associated with this conversation
       const newMessage = {
         content,
         sender_id: userId,
         is_admin: true
       };
 
-      const { error } = await supabase
+      const { error: insertError } = await supabase
         .from('messages')
         .insert(newMessage);
 
-      if (error) {
-        console.error('Error sending message:', error);
+      if (insertError) {
+        console.error('Error sending message:', insertError);
+        setError(`Failed to send message: ${insertError.message}`);
         toast({
           title: "Error",
-          description: "Failed to send message",
+          description: `Failed to send message: ${insertError.message}`,
           variant: "destructive"
         });
       } else {
@@ -183,6 +198,7 @@ const ConversationView: React.FC<ConversationViewProps> = ({ userId, onBack }) =
       }
     } catch (error) {
       console.error('Error sending message:', error);
+      setError(`Failed to send message: ${error instanceof Error ? error.message : 'Unknown error'}`);
       toast({
         title: "Error",
         description: "Failed to send message",
@@ -228,6 +244,11 @@ const ConversationView: React.FC<ConversationViewProps> = ({ userId, onBack }) =
           {getConnectionStatusIndicator()}
         </div>
       </div>
+      {error && (
+        <Alert variant="destructive" className="m-2">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
       <div className="flex-1 overflow-y-auto">
         {loading ? (
           <div className="h-full flex items-center justify-center">
