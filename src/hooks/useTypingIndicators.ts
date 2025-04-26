@@ -16,6 +16,8 @@ export const useTypingIndicators = (userId: string | null, sessionId: string | n
         const state = typingChannel.presenceState();
         const typingData: TypingIndicator[] = [];
         
+        console.log('Typing channel state:', state); // Added logging
+        
         Object.keys(state).forEach(key => {
           state[key].forEach((presence: any) => {
             if (presence.isTyping) {
@@ -29,6 +31,7 @@ export const useTypingIndicators = (userId: string | null, sessionId: string | n
           });
         });
         
+        console.log('Updated typing data:', typingData); // Added logging
         setTypingUsers(typingData);
       })
       .subscribe();
@@ -41,6 +44,8 @@ export const useTypingIndicators = (userId: string | null, sessionId: string | n
   const setTypingStatus = useCallback(async (isTyping: boolean) => {
     const typingChannel = supabase.channel('typing');
     
+    console.log(`Setting typing status: ${isTyping}`); // Added logging
+    
     await typingChannel.track({
       userId: userId || undefined,
       sessionId: userId ? undefined : sessionId,
@@ -50,10 +55,12 @@ export const useTypingIndicators = (userId: string | null, sessionId: string | n
   }, [userId, sessionId]);
 
   const getTypingIndicator = useCallback(() => {
-    if (userId) {
-      return typingUsers.filter(user => user.userId !== userId && !user.sessionId);
-    }
-    return typingUsers.filter(user => user.sessionId !== sessionId && !user.sessionId);
+    const filteredTypingUsers = userId
+      ? typingUsers.filter(user => user.userId !== userId && !user.sessionId)
+      : typingUsers.filter(user => user.sessionId !== sessionId && !user.sessionId);
+    
+    console.log('Filtered typing users:', filteredTypingUsers); // Added logging
+    return filteredTypingUsers;
   }, [typingUsers, userId, sessionId]);
 
   return { setTypingStatus, typingUsers: getTypingIndicator() };

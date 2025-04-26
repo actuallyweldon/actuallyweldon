@@ -22,9 +22,12 @@ const MessageInput: React.FC<MessageInputProps> = ({
   const typingTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
 
   const handleTyping = () => {
+    console.log('Handle typing called'); // Added logging
+    
     if (!isTyping) {
       setIsTyping(true);
       onTyping?.(true);
+      console.log('Started typing'); // Added logging
     }
     
     // Clear existing timeout
@@ -36,6 +39,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
     typingTimeoutRef.current = setTimeout(() => {
       setIsTyping(false);
       onTyping?.(false);
+      console.log('Stopped typing'); // Added logging
     }, 2000);
   };
 
