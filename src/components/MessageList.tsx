@@ -6,9 +6,10 @@ import { Message } from '@/types/message';
 interface MessageListProps {
   messages: Message[];
   isLoading?: boolean;
+  targetUserId?: string;
 }
 
-const MessageList: React.FC<MessageListProps> = ({ messages, isLoading }) => {
+const MessageList: React.FC<MessageListProps> = ({ messages, isLoading, targetUserId }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -27,16 +28,14 @@ const MessageList: React.FC<MessageListProps> = ({ messages, isLoading }) => {
     );
   }
 
-  // Map messages to format expected by MessageBubble
-  const formattedMessages = messages.map(message => ({
-    ...message,
-    sender: message.is_admin ? 'admin' as const : 'user' as const,
-    timestamp: message.created_at
-  }));
+  // Filter messages by targetUserId if provided (for admin view)
+  const filteredMessages = targetUserId
+    ? messages.filter(msg => msg.sender_id === targetUserId)
+    : messages;
 
   return (
     <div className="flex-1 overflow-y-auto p-4 space-y-2 bg-imessage-background">
-      {formattedMessages.map((message) => (
+      {filteredMessages.map((message) => (
         <MessageBubble key={message.id} message={message} />
       ))}
       <div ref={messagesEndRef} />
