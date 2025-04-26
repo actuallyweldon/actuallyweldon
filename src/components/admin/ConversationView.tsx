@@ -21,7 +21,7 @@ const ConversationView: React.FC<ConversationViewProps> = ({ userId, onBack }) =
   const { user } = useSupabaseAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
-  const [userInfo, setUserInfo] = useState<{ username?: string }>({});
+  const [userInfo, setUserInfo] = useState<{ username?: string; name?: string }>({});
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'connecting'>('connecting');
   const [error, setError] = useState<string | null>(null);
   const [isAnonymous, setIsAnonymous] = useState(false);
@@ -58,7 +58,7 @@ const ConversationView: React.FC<ConversationViewProps> = ({ userId, onBack }) =
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('username')
+        .select('username, name')
         .eq('id', userId)
         .maybeSingle();
 
@@ -207,6 +207,9 @@ const ConversationView: React.FC<ConversationViewProps> = ({ userId, onBack }) =
   };
 
   const getUserDisplayName = () => {
+    if (userInfo.name) {
+      return userInfo.name;
+    }
     if (userInfo.username) {
       return userInfo.username;
     }
