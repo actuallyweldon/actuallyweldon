@@ -5,34 +5,52 @@ import MessageList from '../components/MessageList';
 import MessageInput from '../components/MessageInput';
 import AuthModal from '../components/AuthModal';
 import { Message } from '../types/message';
-import { 
-  saveMessagesToLocalStorage, 
-  getMessagesFromLocalStorage 
-} from '../utils/localStorage';
-import { initAudio, playMessageSound } from '../utils/sound';
+import { useSupabaseAuth } from '@/hooks/useSupabaseAuth';
+import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { initAudio, playMessageSound } from '../utils/sound';
 
 const Index = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const { user, signIn, signUp, signOut } = useSupabaseAuth();
   const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const storedMessages = getMessagesFromLocalStorage();
-    if (storedMessages.length === 0) {
-      const welcomeMessage: Message = {
-        id: uuidv4(),
-        content: 'Hello.',
-        sender: 'admin',
-        timestamp: new Date().toISOString(),
-      };
-      setMessages([welcomeMessage]);
-      saveMessagesToLocalStorage([welcomeMessage]);
-    } else {
-      setMessages(storedMessages);
-    }
+    const fetchMessages = async () => {
+      const { data, error } = await supabase
+        .from('messages')
+        .select('*')
+        .order('created_at', { ascending: true });
 
+      if (error) {
+        console.error('Error fetching messages:', error);
+        return;
+      }
+
+      setMessages(data || []);
+      setIsLoading(false);
+    };
+
+    fetchMessages();
+
+    // Subscribe to new messages
+    const channel = supabase
+      .channel('public:messages')
+      .on('postgres_changes', 
+        { event: 'INSERT', schema: 'public', table: 'messages' },
+        (payload) => {
+          const newMessage = payload.new as Message;
+          setMessages((current) => [...current, newMessage]);
+          if (newMessage.sender_id !== user?.id) {
+            playMessageSound();
+          }
+        }
+      )
+      .subscribe();
+
+    // Initialize audio on first user interaction
     const handleUserInteraction = () => {
       initAudio();
       document.removeEventListener('click', handleUserInteraction);
@@ -40,46 +58,52 @@ const Index = () => {
     document.addEventListener('click', handleUserInteraction);
 
     return () => {
+      supabase.removeChannel(channel);
       document.removeEventListener('click', handleUserInteraction);
     };
-  }, []);
+  }, [user?.id]);
 
-  useEffect(() => {
-    if (messages.length > 0) {
-      saveMessagesToLocalStorage(messages);
+  const handleSendMessage = async (content: string) => {
+    if (!user) {
+      toast({
+        title: "Authentication required",
+        description: "Please sign in to send messages",
+        variant: "destructive"
+      });
+      setIsAuthModalOpen(true);
+      return;
     }
-  }, [messages]);
 
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
-  useEffect(() => {
-    if (!isInitialLoad && messages.length > 0) {
-      const lastMessage = messages[messages.length - 1];
-      if (lastMessage.sender === 'admin') {
-        playMessageSound();
-      }
-    } else if (isInitialLoad && messages.length > 0) {
-      setIsInitialLoad(false);
-    }
-  }, [messages, isInitialLoad]);
-
-  const handleSendMessage = (content: string) => {
-    const newUserMessage: Message = {
+    const newMessage = {
       id: uuidv4(),
       content,
-      sender: 'user',
-      timestamp: new Date().toISOString(),
+      sender_id: user.id,
+      is_admin: false,
+      created_at: new Date().toISOString(),
     };
-    
-    setMessages(prev => [...prev, newUserMessage]);
-    
-    setTimeout(() => {
-      const adminMessage: Message = {
+
+    const { error } = await supabase.from('messages').insert(newMessage);
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to send message",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Admin response
+    setTimeout(async () => {
+      const adminResponse = {
         id: uuidv4(),
         content: getRandomAdminResponse(),
-        sender: 'admin',
-        timestamp: new Date().toISOString(),
+        sender_id: user.id,
+        is_admin: true,
+        created_at: new Date().toISOString(),
       };
-      setMessages(prev => [...prev, adminMessage]);
+
+      await supabase.from('messages').insert(adminResponse);
     }, Math.random() * 2000 + 500);
   };
 
@@ -96,52 +120,21 @@ const Index = () => {
     return responses[Math.floor(Math.random() * responses.length)];
   };
 
-  const handleSignIn = async (email: string, password: string) => {
-    try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      setIsAuthenticated(true);
-      toast({
-        title: "Signed in",
-        description: "You are now signed in"
-      });
-      
-      return Promise.resolve();
-    } catch (error) {
-      return Promise.reject(error);
-    }
-  };
-
-  const handleSignUp = async (email: string, password: string) => {
-    try {
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      setIsAuthenticated(true);
-      toast({
-        title: "Account created",
-        description: "Your account has been created and you're now signed in"
-      });
-      
-      return Promise.resolve();
-    } catch (error) {
-      return Promise.reject(error);
-    }
-  };
-
   return (
     <div className="flex flex-col h-screen bg-imessage-background">
       <ChatHeader 
         onAuthClick={() => setIsAuthModalOpen(true)} 
-        isAuthenticated={isAuthenticated}
+        isAuthenticated={!!user}
+        onSignOut={signOut}
       />
-      <MessageList messages={messages} />
+      <MessageList messages={messages} isLoading={isLoading} />
       <MessageInput onSendMessage={handleSendMessage} />
       
       <AuthModal
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
-        onSignIn={handleSignIn}
-        onSignUp={handleSignUp}
+        onSignIn={signIn}
+        onSignUp={signUp}
       />
     </div>
   );

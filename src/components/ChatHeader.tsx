@@ -1,14 +1,16 @@
+
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { CircleUser } from 'lucide-react';
+import { CircleUser, LogOut } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface ChatHeaderProps {
   onAuthClick: () => void;
   isAuthenticated: boolean;
+  onSignOut?: () => void;
 }
 
-const ChatHeader: React.FC<ChatHeaderProps> = ({ onAuthClick, isAuthenticated }) => {
+const ChatHeader: React.FC<ChatHeaderProps> = ({ onAuthClick, isAuthenticated, onSignOut }) => {
   const { toast } = useToast();
   
   const handleProfileClick = () => {
@@ -24,7 +26,18 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({ onAuthClick, isAuthenticated })
   
   return (
     <div className="flex justify-between items-center p-4 bg-black border-b border-gray-800">
-      <div className="w-10"></div>
+      <div className="w-10">
+        {isAuthenticated && onSignOut && (
+          <Button 
+            variant="ghost" 
+            size="icon"
+            className="text-imessage-header"
+            onClick={onSignOut}
+          >
+            <LogOut className="h-6 w-6" />
+          </Button>
+        )}
+      </div>
       <h1 className="text-imessage-header font-semibold text-center">
         actuallyweldon
       </h1>
