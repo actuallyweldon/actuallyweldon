@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Conversation, ConnectionStatus, ConversationError } from '@/types/conversation';
@@ -48,7 +49,7 @@ export const useConversationList = () => {
           sender_id,
           content,
           created_at,
-          profiles:profiles (
+          profiles!inner (
             username,
             avatar_url
           )
@@ -78,15 +79,17 @@ export const useConversationList = () => {
       
       for (const message of data) {
         if (!uniqueSenderConversations.has(message.sender_id)) {
-          const profileData = message.profiles as ProfileData;
+          // Safely access the profiles data
+          const profileData = message.profiles as unknown as ProfileData;
+          
           uniqueSenderConversations.set(message.sender_id, {
             sender_id: message.sender_id,
             last_message: message.content,
             created_at: message.created_at,
             last_message_timestamp: message.created_at,
             user_info: {
-              username: profileData?.username ?? undefined,
-              avatar_url: profileData?.avatar_url ?? undefined,
+              username: profileData?.username || undefined,
+              avatar_url: profileData?.avatar_url || undefined,
             },
             unread_count: 0
           });
@@ -173,60 +176,12 @@ export const useConversationList = () => {
           }
         }
       )
-      .on('postgres_changes', 
-        { event: 'UPDATE', schema: 'public', table: 'messages' },
-        (payload) => {
-          const updatedMessage = payload.new as any;
-          
-          setConversations(prev => {
-            const existingConvIndex = prev.findIndex(
-              c => c.sender_id === updatedMessage.sender_id
-            );
-            
-            if (existingConvIndex >= 0) {
-              const updated = [...prev];
-              updated[existingConvIndex] = {
-                ...updated[existingConvIndex],
-                last_message: updatedMessage.content,
-                last_message_timestamp: updatedMessage.created_at
-              };
-              return updated;
-            }
-            
-            return prev;
-          });
-        }
-      )
-      .on('postgres_changes',
-        { event: 'DELETE', schema: 'public', table: 'messages' },
-        (payload) => {
-          // If a message was deleted, we may need to update the last message
-          // This is a more complex case that would require re-fetching
-          // For simplicity, we'll just refresh the current page
-          fetchConversations(currentPage);
-        }
-      )
-      .subscribe(status => {
-        if (status === 'SUBSCRIBED') {
-          setConnectionStatus('connected');
-        } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
-          setConnectionStatus('disconnected');
-          
-          // Implement reconnection with exponential backoff
-          const reconnectDelay = 1000 * Math.min(10, Math.pow(2, errors.filter(e => e.type === 'connection').length));
-          setTimeout(() => {
-            channel.subscribe();
-            setConnectionStatus('connecting');
-          }, reconnectDelay);
-        } else {
-          setConnectionStatus('connecting');
-        }
-      });
+      .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [currentPage, fetchConversations, handleError, errors]);
+  }, [currentPage, fetchConversations, handleError]);
 
   // Mark conversations as read
   const markConversationAsRead = useCallback(async (senderId: string) => {
