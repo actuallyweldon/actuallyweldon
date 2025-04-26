@@ -1,13 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowLeft, Loader2, UserRound } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import MessageList from '../MessageList';
 import MessageInput from '../MessageInput';
-import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { supabase } from '@/integrations/supabase/client';
 import { Message } from '@/types/message';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import ConversationHeader from './ConversationHeader';
 
 interface ConversationViewProps {
   userId: string;
@@ -165,46 +164,21 @@ const ConversationView: React.FC<ConversationViewProps> = ({ userId, onBack }) =
     return `User ${userId.slice(0, 8)}`;
   };
 
-  const getConnectionStatusIndicator = () => {
-    if (connectionStatus === 'connected') {
-      return <span className="h-2 w-2 rounded-full bg-green-500 ml-2" title="Connected"></span>;
-    } else if (connectionStatus === 'disconnected') {
-      return <span className="h-2 w-2 rounded-full bg-red-500 ml-2" title="Disconnected"></span>;
-    } else {
-      return <span className="h-2 w-2 rounded-full bg-yellow-500 animate-pulse ml-2" title="Connecting..."></span>;
-    }
-  };
-
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center p-4 border-b border-gray-800">
-        {isMobile && onBack && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="mr-2 text-white"
-            onClick={onBack}
-          >
-            <ArrowLeft className="h-6 w-6" />
-          </Button>
-        )}
-        <div className="flex items-center gap-3">
-          <Avatar className="h-8 w-8 bg-gray-700">
-            <AvatarFallback className="bg-gray-700 text-white">
-              <UserRound className="h-4 w-4" />
-            </AvatarFallback>
-          </Avatar>
-          <h2 className="text-lg font-semibold text-white">
-            Chat with {getUserDisplayName()}
-          </h2>
-          {getConnectionStatusIndicator()}
-        </div>
-      </div>
+      <ConversationHeader
+        onBack={onBack}
+        isMobile={isMobile}
+        userDisplayName={getUserDisplayName()}
+        connectionStatus={connectionStatus}
+      />
+      
       {error && (
         <Alert variant="destructive" className="m-2">
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
+      
       <div className="flex-1 overflow-y-auto">
         {loading ? (
           <div className="h-full flex items-center justify-center">
@@ -214,6 +188,7 @@ const ConversationView: React.FC<ConversationViewProps> = ({ userId, onBack }) =
           <MessageList messages={messages} />
         )}
       </div>
+      
       <MessageInput onSendMessage={handleSendMessage} />
     </div>
   );
