@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Message } from '@/types/message';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from './use-toast';
@@ -22,7 +22,7 @@ export const useMessages = (userId: string | null, sessionId: string | null) => 
   const { setTypingStatus, typingUsers } = useTypingIndicators(userId, sessionId);
 
   // Fetch initial messages
-  useState(() => {
+  useEffect(() => {
     if (!sessionId && !userId) {
       console.log('No session or user ID provided, skipping messages fetch');
       setIsLoading(false);
