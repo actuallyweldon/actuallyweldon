@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef } from 'react';
 import MessageBubble from './MessageBubble';
 import { Message } from '@/types/message';
@@ -76,10 +75,12 @@ const MessageList: React.FC<MessageListProps> = ({
       ))}
       
       {showTypingIndicator && (
-        <div className="flex space-x-1 p-2 mb-3">
-          <div className="w-2 h-2 rounded-full bg-gray-500 animate-pulse" style={{ animationDelay: "0ms" }}></div>
-          <div className="w-2 h-2 rounded-full bg-gray-500 animate-pulse" style={{ animationDelay: "300ms" }}></div>
-          <div className="w-2 h-2 rounded-full bg-gray-500 animate-pulse" style={{ animationDelay: "600ms" }}></div>
+        <div className="flex space-x-1 p-2 mb-3" style={{ maxWidth: "80px" }}>
+          <div className="message-bubble-admin flex items-center space-x-1 py-3 px-4">
+            <div className="w-2 h-2 rounded-full bg-gray-400 animate-pulse" style={{ animationDelay: "0ms" }}></div>
+            <div className="w-2 h-2 rounded-full bg-gray-400 animate-pulse" style={{ animationDelay: "300ms" }}></div>
+            <div className="w-2 h-2 rounded-full bg-gray-400 animate-pulse" style={{ animationDelay: "600ms" }}></div>
+          </div>
         </div>
       )}
       
