@@ -1,22 +1,23 @@
 
-import { useEffect, useCallback, useState } from 'react';
+import { useEffect, useCallback, useState, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { TypingIndicator } from '@/types/message';
 
 export const useTypingIndicators = (userId: string | null, sessionId: string | null) => {
   const [typingUsers, setTypingUsers] = useState<TypingIndicator[]>([]);
+  const channelRef = useRef(supabase.channel('typing'));
 
   useEffect(() => {
     if (!sessionId && !userId) return;
-
-    const typingChannel = supabase.channel('typing');
     
-    typingChannel
+    const channel = channelRef.current;
+    
+    channel
       .on('presence', { event: 'sync' }, () => {
-        const state = typingChannel.presenceState();
+        const state = channel.presenceState();
         const typingData: TypingIndicator[] = [];
         
-        console.log('Typing channel state:', state); // Added logging
+        console.log('Typing channel state:', state);
         
         Object.keys(state).forEach(key => {
           state[key].forEach((presence: any) => {
@@ -31,27 +32,33 @@ export const useTypingIndicators = (userId: string | null, sessionId: string | n
           });
         });
         
-        console.log('Updated typing data:', typingData); // Added logging
+        console.log('Updated typing data:', typingData);
         setTypingUsers(typingData);
       })
-      .subscribe();
+      .subscribe((status) => {
+        console.log('Channel subscription status:', status);
+      });
 
     return () => {
-      supabase.removeChannel(typingChannel);
+      channel.unsubscribe();
     };
   }, [userId, sessionId]);
 
   const setTypingStatus = useCallback(async (isTyping: boolean) => {
-    const typingChannel = supabase.channel('typing');
+    const channel = channelRef.current;
     
-    console.log(`Setting typing status: ${isTyping}`); // Added logging
+    console.log(`Setting typing status: ${isTyping}`);
     
-    await typingChannel.track({
-      userId: userId || undefined,
-      sessionId: userId ? undefined : sessionId,
-      isTyping,
-      lastTyped: new Date().toISOString()
-    });
+    try {
+      await channel.track({
+        userId: userId || undefined,
+        sessionId: userId ? undefined : sessionId,
+        isTyping,
+        lastTyped: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('Error tracking typing status:', error);
+    }
   }, [userId, sessionId]);
 
   const getTypingIndicator = useCallback(() => {
@@ -59,7 +66,7 @@ export const useTypingIndicators = (userId: string | null, sessionId: string | n
       ? typingUsers.filter(user => user.userId !== userId && !user.sessionId)
       : typingUsers.filter(user => user.sessionId !== sessionId && !user.sessionId);
     
-    console.log('Filtered typing users:', filteredTypingUsers); // Added logging
+    console.log('Filtered typing users:', filteredTypingUsers);
     return filteredTypingUsers;
   }, [typingUsers, userId, sessionId]);
 

@@ -9,6 +9,7 @@ import { Message } from '@/types/message';
 import ConversationHeader from './ConversationHeader';
 import { formatMessage } from '@/utils/messageFormatting';
 import { useSupabaseAuth } from '@/hooks/useSupabaseAuth';
+import { useTypingIndicators } from '@/hooks/useTypingIndicators';
 
 interface ConversationViewProps {
   userId: string;
@@ -24,6 +25,7 @@ const ConversationView: React.FC<ConversationViewProps> = ({ userId, onBack }) =
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'connecting'>('connecting');
   const [error, setError] = useState<string | null>(null);
   const [isAnonymous, setIsAnonymous] = useState(false);
+  const { setTypingStatus, typingUsers } = useTypingIndicators(user?.id || null, null);
 
   useEffect(() => {
     const checkUserType = async () => {
@@ -232,11 +234,17 @@ const ConversationView: React.FC<ConversationViewProps> = ({ userId, onBack }) =
             <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
           </div>
         ) : (
-          <MessageList messages={messages} />
+          <MessageList 
+            messages={messages} 
+            showTypingIndicator={typingUsers.length > 0}
+          />
         )}
       </div>
       
-      <MessageInput onSendMessage={handleSendMessage} />
+      <MessageInput 
+        onSendMessage={handleSendMessage}
+        onTyping={setTypingStatus}
+      />
     </div>
   );
 };
