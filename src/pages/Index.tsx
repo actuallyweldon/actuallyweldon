@@ -5,6 +5,7 @@ import ChatHeader from '../components/ChatHeader';
 import MessageList from '../components/MessageList';
 import MessageInput from '../components/MessageInput';
 import AuthModal from '../components/AuthModal';
+import { Message } from '@/types/message';
 import { useSupabaseAuth } from '@/hooks/useSupabaseAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
