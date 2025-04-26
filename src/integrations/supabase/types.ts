@@ -17,6 +17,7 @@ export type Database = {
           is_admin: boolean
           recipient_id: string | null
           sender_id: string
+          session_id: string | null
         }
         Insert: {
           content: string
@@ -25,6 +26,7 @@ export type Database = {
           is_admin?: boolean
           recipient_id?: string | null
           sender_id: string
+          session_id?: string | null
         }
         Update: {
           content?: string
@@ -33,6 +35,7 @@ export type Database = {
           is_admin?: boolean
           recipient_id?: string | null
           sender_id?: string
+          session_id?: string | null
         }
         Relationships: []
       }

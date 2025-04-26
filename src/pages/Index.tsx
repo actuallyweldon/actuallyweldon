@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import ChatHeader from '../components/ChatHeader';
 import MessageList from '../components/MessageList';
@@ -5,6 +6,7 @@ import MessageInput from '../components/MessageInput';
 import AuthModal from '../components/AuthModal';
 import { Message } from '@/types/message';
 import { useSupabaseAuth } from '@/hooks/useSupabaseAuth';
+import { useAnonymousSession } from '@/hooks/useAnonymousSession';
 import { supabase } from '@/integrations/supabase/client';
 import { initAudio, playMessageSound } from '../utils/sound';
 
@@ -12,18 +14,27 @@ const Index = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const { user, loading: authLoading, signIn, signUp, signOut, isAdmin } = useSupabaseAuth();
+  const { sessionId } = useAnonymousSession();
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (authLoading) return;
+    if (authLoading || !sessionId) return;
 
     const fetchMessages = async () => {
       try {
-        const { data, error } = await supabase
+        const query = supabase
           .from('messages')
-          .select('*')
-          .or(`sender_id.eq.${user?.id},and(is_admin.eq.true,recipient_id.eq.${user?.id})`)
-          .order('created_at', { ascending: true });
+          .select('*');
+
+        if (user) {
+          // If authenticated, get user's messages and admin messages to them
+          query.or(`sender_id.eq.${user.id},and(is_admin.eq.true,recipient_id.eq.${user.id})`);
+        } else {
+          // If anonymous, get messages for this session
+          query.eq('session_id', sessionId);
+        }
+
+        const { data, error } = await query.order('created_at', { ascending: true });
 
         if (error) {
           console.error('Error fetching messages:', error);
@@ -52,15 +63,22 @@ const Index = () => {
         { event: 'INSERT', schema: 'public', table: 'messages' },
         (payload) => {
           const newMessage = payload.new as any;
-          const formattedMessage: Message = {
-            ...newMessage,
-            sender: newMessage.is_admin ? 'admin' : 'user',
-            timestamp: newMessage.created_at
-          };
           
-          setMessages((current) => [...current, formattedMessage]);
-          if (newMessage.sender_id !== user?.id) {
-            playMessageSound();
+          // Only add message if it belongs to current user/session
+          if (user && newMessage.sender_id === user.id || 
+              !user && newMessage.session_id === sessionId ||
+              newMessage.is_admin && (!newMessage.recipient_id || (user && newMessage.recipient_id === user.id))) {
+            
+            const formattedMessage: Message = {
+              ...newMessage,
+              sender: newMessage.is_admin ? 'admin' : 'user',
+              timestamp: newMessage.created_at
+            };
+            
+            setMessages((current) => [...current, formattedMessage]);
+            if (newMessage.sender_id !== user?.id) {
+              playMessageSound();
+            }
           }
         }
       )
@@ -76,21 +94,16 @@ const Index = () => {
       supabase.removeChannel(channel);
       document.removeEventListener('click', handleUserInteraction);
     };
-  }, [user?.id, authLoading]);
+  }, [user?.id, authLoading, sessionId]);
 
   const handleSendMessage = async (content: string) => {
-    if (!user) {
-      setIsAuthModalOpen(true);
-      console.log('Authentication required to send messages');
-      return;
-    }
-
     try {
       const newMessage = {
         content,
-        sender_id: user.id,
+        sender_id: user?.id || null,
         is_admin: false,
-        recipient_id: null
+        recipient_id: null,
+        session_id: user ? null : sessionId
       };
 
       const { error } = await supabase.from('messages').insert(newMessage);
@@ -122,7 +135,7 @@ const Index = () => {
       />
       <MessageInput 
         onSendMessage={handleSendMessage}
-        disabled={authLoading} 
+        disabled={authLoading || !sessionId} 
       />
       
       <AuthModal
