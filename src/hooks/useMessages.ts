@@ -71,7 +71,7 @@ export const useMessages = (userId: string | null, sessionId: string | null) => 
     try {
       const newMessage = {
         content,
-        sender_id: userId || sessionId,
+        sender_id: userId || null,
         is_admin: false,
         recipient_id: null,
         session_id: userId ? null : sessionId
