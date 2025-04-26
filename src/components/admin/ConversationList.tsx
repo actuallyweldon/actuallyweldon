@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2 } from 'lucide-react';
@@ -5,6 +6,7 @@ import { useToast } from '@/hooks/use-toast';
 import ConnectionStatus from './ConnectionStatus';
 import ConversationItem from './ConversationItem';
 import ConversationPagination from './ConversationPagination';
+import { Conversation } from '@/types/conversation';
 
 interface ConversationListProps {
   onSelectUser: (userId: string) => void;
