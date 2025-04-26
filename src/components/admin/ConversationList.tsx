@@ -32,19 +32,18 @@ const ConversationList: React.FC<ConversationListProps> = ({ onSelectUser }) => 
       setLoading(true);
       
       try {
-        // Get the most recent message from each unique sender with profiles joined
-        const { data, error } = await supabase
+        // Get the most recent message from each unique sender
+        const { data: messagesData, error: messagesError } = await supabase
           .from('messages')
           .select(`
             sender_id,
             content,
-            created_at,
-            profiles!inner(username)
+            created_at
           `)
           .order('created_at', { ascending: false });
 
-        if (error) {
-          console.error('Error fetching conversations:', error);
+        if (messagesError) {
+          console.error('Error fetching messages:', messagesError);
           toast({
             title: "Error",
             description: "Could not load conversations",
@@ -58,14 +57,21 @@ const ConversationList: React.FC<ConversationListProps> = ({ onSelectUser }) => 
         const uniqueConversations: Conversation[] = [];
         const processedSenders = new Set();
 
-        for (const message of data || []) {
+        for (const message of messagesData || []) {
           if (!processedSenders.has(message.sender_id)) {
+            // For each unique sender, fetch their profile data separately
+            const { data: profileData } = await supabase
+              .from('profiles')
+              .select('username')
+              .eq('id', message.sender_id)
+              .single();
+              
             const conversation: Conversation = {
               sender_id: message.sender_id,
               last_message: message.content,
               created_at: message.created_at,
               user_info: {
-                username: message.profiles?.username
+                username: profileData?.username
               }
             };
             
