@@ -15,7 +15,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   sessionId,
   onAuthRequired,
 }) => {
-  const { messages, isLoading, sendMessage } = useMessages(userId, sessionId);
+  const { messages, isLoading, error, sendMessage } = useMessages(userId, sessionId);
 
   const handleSendMessage = async (content: string) => {
     const success = await sendMessage(content);
@@ -23,6 +23,14 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       onAuthRequired();
     }
   };
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <p className="text-red-500">Error loading messages. Please try again later.</p>
+      </div>
+    );
+  }
 
   return (
     <>

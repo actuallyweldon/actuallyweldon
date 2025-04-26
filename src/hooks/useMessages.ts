@@ -7,12 +7,17 @@ import { playMessageSound } from '../utils/sound';
 export const useMessages = (userId: string | null, sessionId: string | null) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
-    if (!sessionId && !userId) return;
+    if (!sessionId && !userId) {
+      setIsLoading(false);
+      return;
+    }
 
     const fetchMessages = async () => {
       try {
+        setError(null);
         const query = supabase
           .from('messages')
           .select('*');
@@ -23,11 +28,10 @@ export const useMessages = (userId: string | null, sessionId: string | null) => 
           query.eq('session_id', sessionId);
         }
 
-        const { data, error } = await query.order('created_at', { ascending: true });
+        const { data, error: fetchError } = await query.order('created_at', { ascending: true });
 
-        if (error) {
-          console.error('Error fetching messages:', error);
-          return;
+        if (fetchError) {
+          throw new Error('Error fetching messages');
         }
 
         const formattedMessages = (data || []).map((msg): Message => ({
@@ -37,8 +41,9 @@ export const useMessages = (userId: string | null, sessionId: string | null) => 
         }));
 
         setMessages(formattedMessages);
-      } catch (error) {
-        console.error('Error processing messages:', error);
+      } catch (err) {
+        console.error('Error processing messages:', err);
+        setError(err instanceof Error ? err : new Error('Unknown error occurred'));
       } finally {
         setIsLoading(false);
       }
@@ -101,5 +106,5 @@ export const useMessages = (userId: string | null, sessionId: string | null) => 
     }
   };
 
-  return { messages, isLoading, sendMessage };
+  return { messages, isLoading, error, sendMessage };
 };
