@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import {
   Dialog,
@@ -9,6 +8,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { getAuthPreferences, saveAuthPreferences } from '@/utils/localStorage';
 
 interface AuthModalProps {
@@ -34,7 +34,7 @@ const AuthModal: React.FC<AuthModalProps> = ({
     if (isOpen) {
       const prefs = getAuthPreferences();
       if (!prefs.hasVisited) {
-        setIsLogin(false); // Show signup for new users
+        setIsLogin(false);
         saveAuthPreferences({ hasVisited: true, preferredAuthMode: 'signup' });
       } else if (prefs.preferredAuthMode) {
         setIsLogin(prefs.preferredAuthMode === 'login');
@@ -79,24 +79,37 @@ const AuthModal: React.FC<AuthModalProps> = ({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>
-            {isLogin ? 'Sign In' : 'Sign Up'}
+          <DialogTitle className="text-center">
+            Welcome
           </DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4 pt-4">
-          {!isLogin && (
-            <div className="grid w-full items-center gap-1.5">
-              <Label htmlFor="name">Name</Label>
-              <Input
-                id="name"
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Your name"
-                disabled={isLoading}
-              />
-            </div>
-          )}
+        <div className="flex items-center justify-center gap-4 mb-4">
+          <span className={`text-sm ${!isLogin ? 'text-primary' : 'text-muted-foreground'}`}>Sign Up</span>
+          <Switch
+            checked={isLogin}
+            onCheckedChange={toggleAuthMode}
+            aria-label="Toggle authentication mode"
+          />
+          <span className={`text-sm ${isLogin ? 'text-primary' : 'text-muted-foreground'}`}>Sign In</span>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <Button type="submit" className="w-full mb-4" disabled={isLoading}>
+            {isLogin ? 'Sign In' : 'Sign Up'}
+          </Button>
+          
+          <div className={`grid w-full items-center gap-1.5 transition-all duration-200 ${isLogin ? 'h-0 opacity-0 overflow-hidden' : 'h-auto opacity-100'}`}>
+            <Label htmlFor="name">Name</Label>
+            <Input
+              id="name"
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Your name"
+              disabled={isLoading}
+              autoFocus={!isLogin}
+              tabIndex={isLogin ? -1 : 1}
+            />
+          </div>
           <div className="grid w-full items-center gap-1.5">
             <Label htmlFor="email">Email</Label>
             <Input
@@ -106,6 +119,8 @@ const AuthModal: React.FC<AuthModalProps> = ({
               onChange={(e) => setEmail(e.target.value)}
               placeholder="Email"
               disabled={isLoading}
+              autoFocus={isLogin}
+              tabIndex={isLogin ? 1 : 2}
             />
           </div>
           <div className="grid w-full items-center gap-1.5">
@@ -117,21 +132,8 @@ const AuthModal: React.FC<AuthModalProps> = ({
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Password"
               disabled={isLoading}
+              tabIndex={isLogin ? 2 : 3}
             />
-          </div>
-          <div className="flex flex-col space-y-2">
-            <Button type="submit" disabled={isLoading}>
-              {isLogin ? 'Sign In' : 'Sign Up'}
-            </Button>
-            <Button
-              type="button"
-              variant="link"
-              onClick={toggleAuthMode}
-              className="self-center"
-              disabled={isLoading}
-            >
-              {isLogin ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
-            </Button>
           </div>
         </form>
       </DialogContent>
