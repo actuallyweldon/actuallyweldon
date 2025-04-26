@@ -108,7 +108,7 @@ const Index = () => {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-imessage-background">
+    <div className="grid h-[100dvh] grid-rows-[auto_1fr_auto] bg-imessage-background">
       <ChatHeader 
         onAuthClick={() => setIsAuthModalOpen(true)} 
         isAuthenticated={!!user}

@@ -22,7 +22,7 @@ const MessageList: React.FC<MessageListProps> = ({ messages, isLoading, targetUs
 
   if (isLoading) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-imessage-background">
+      <div className="flex items-center justify-center h-full bg-imessage-background">
         <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
       </div>
     );
@@ -54,7 +54,7 @@ const MessageList: React.FC<MessageListProps> = ({ messages, isLoading, targetUs
   });
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 space-y-2 bg-imessage-background">
+    <div className="h-full overflow-y-auto p-4 space-y-2 bg-imessage-background">
       {Object.entries(groupedMessages).map(([date, dateMessages]) => (
         <div key={date} className="space-y-2">
           <div className="flex justify-center my-4">

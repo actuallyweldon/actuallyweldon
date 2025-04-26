@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
@@ -20,7 +19,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   email
 }) => {
   return (
-    <div className="flex justify-between items-center p-4 bg-black border-b border-gray-800">
+    <div className="sticky top-0 z-10 flex justify-between items-center p-4 bg-black border-b border-gray-800 shadow-md">
       <div className="w-10">
         {/* Removed settings icon */}
       </div>
