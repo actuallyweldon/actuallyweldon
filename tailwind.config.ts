@@ -1,4 +1,3 @@
-
 import type { Config } from "tailwindcss";
 
 export default {
@@ -55,8 +54,8 @@ export default {
 				},
 				imessage: {
 					background: '#000000',
-					user: '#1EAEDB',
-					admin: '#8E9196',
+					user: '#0B84FF',
+					admin: '#303030',
 					header: '#FFFFFF'
 				},
 				sidebar: {

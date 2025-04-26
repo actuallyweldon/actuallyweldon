@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef } from 'react';
 import MessageBubble from './MessageBubble';
 import { Message } from '@/types/message';
@@ -23,13 +22,12 @@ const MessageList: React.FC<MessageListProps> = ({ messages, isLoading, targetUs
 
   if (isLoading) {
     return (
-      <div className="flex-1 flex items-center justify-center">
+      <div className="flex-1 flex items-center justify-center bg-imessage-background">
         <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
       </div>
     );
   }
 
-  // Updated filtering logic to account for recipient_id
   const filteredMessages = targetUserId
     ? messages.filter(msg => 
         msg.sender_id === targetUserId || 
@@ -40,13 +38,12 @@ const MessageList: React.FC<MessageListProps> = ({ messages, isLoading, targetUs
 
   if (filteredMessages.length === 0) {
     return (
-      <div className="flex-1 flex items-center justify-center p-4 text-center text-gray-500">
+      <div className="flex-1 flex items-center justify-center p-4 text-center text-gray-500 bg-imessage-background">
         <p>No messages yet. Start the conversation!</p>
       </div>
     );
   }
 
-  // Group messages by date for better UI organization
   const groupedMessages: {[key: string]: Message[]} = {};
   filteredMessages.forEach(message => {
     const date = new Date(message.created_at).toLocaleDateString();
@@ -57,7 +54,7 @@ const MessageList: React.FC<MessageListProps> = ({ messages, isLoading, targetUs
   });
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 space-y-6 bg-imessage-background">
+    <div className="flex-1 overflow-y-auto p-4 space-y-2 bg-imessage-background">
       {Object.entries(groupedMessages).map(([date, dateMessages]) => (
         <div key={date} className="space-y-2">
           <div className="flex justify-center my-4">
