@@ -8,13 +8,15 @@ export const useAnonymousSession = () => {
   const [sessionId, setSessionId] = useState<string | null>(null);
 
   useEffect(() => {
-    // Try to get existing session from localStorage
+    console.log('Initializing anonymous session');
     let existingSession = localStorage.getItem(SESSION_KEY);
     
     if (!existingSession) {
-      // Create new session if none exists
+      console.log('No existing session found, creating new one');
       existingSession = uuidv4();
       localStorage.setItem(SESSION_KEY, existingSession);
+    } else {
+      console.log('Found existing session:', existingSession);
     }
     
     setSessionId(existingSession);
