@@ -14,7 +14,7 @@ interface ChatHeaderProps {
 
 const ChatHeader: React.FC<ChatHeaderProps> = ({ onAuthClick, isAuthenticated, onSignOut }) => {
   const { toast } = useToast();
-  const { isAdmin, loading } = useAdminAuth();
+  const { isAdmin } = useAdminAuth();
   
   const handleProfileClick = () => {
     if (isAuthenticated) {
@@ -43,23 +43,15 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({ onAuthClick, isAuthenticated, o
       </div>
       <h1 className="text-imessage-header font-semibold text-center flex gap-2 items-center">
         actuallyweldon
-        {isAdmin && !loading && (
+        {isAuthenticated && isAdmin && (
           <Link to="/admin">
-            <Button variant="outline" size="sm" className="text-xs">
+            <Button variant="outline" size="sm" className="text-xs ml-2">
               Admin Dashboard
             </Button>
           </Link>
         )}
       </h1>
-      {isAuthenticated ? (
-        <Button 
-          variant="ghost" 
-          size="icon"
-          className="text-imessage-header"
-        >
-          <Settings className="h-6 w-6" />
-        </Button>
-      ) : (
+      {!isAuthenticated ? (
         <Button 
           variant="ghost" 
           size="icon" 
@@ -67,6 +59,14 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({ onAuthClick, isAuthenticated, o
           onClick={handleProfileClick}
         >
           <CircleUser className="h-6 w-6" />
+        </Button>
+      ) : (
+        <Button 
+          variant="ghost" 
+          size="icon"
+          className="text-imessage-header"
+        >
+          <Settings className="h-6 w-6" />
         </Button>
       )}
     </div>

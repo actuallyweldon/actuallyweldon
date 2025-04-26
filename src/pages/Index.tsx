@@ -79,7 +79,6 @@ const Index = () => {
     const messageId = uuidv4();
     const timestamp = new Date().toISOString();
     
-    // If user is not signed in, just add the message locally
     if (!user) {
       const localMessage: Message = {
         id: messageId,
@@ -93,7 +92,6 @@ const Index = () => {
       
       setMessages(prev => [...prev, localMessage]);
 
-      // Add anonymous admin response
       setTimeout(() => {
         const adminMessage: Message = {
           id: uuidv4(),
@@ -111,7 +109,6 @@ const Index = () => {
       return;
     }
 
-    // For signed in users, store in Supabase
     const newMessage = {
       id: messageId,
       content,
