@@ -1,10 +1,15 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Conversation, ConnectionStatus, ConversationError } from '@/types/conversation';
 import { useToast } from '@/hooks/use-toast';
 
 const CONVERSATIONS_PER_PAGE = 10;
+
+// Type for the profile data from the query
+type ProfileData = {
+  username: string | null;
+  avatar_url: string | null;
+};
 
 export const useConversationList = () => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -37,14 +42,13 @@ export const useConversationList = () => {
     setLoading(true);
     
     try {
-      // Get distinct sender_ids with the most recent message for each
       const { data, error, count } = await supabase
         .from('messages')
         .select(`
           sender_id,
           content,
           created_at,
-          profiles:sender_id (
+          profiles:profiles (
             username,
             avatar_url
           )
@@ -59,29 +63,30 @@ export const useConversationList = () => {
         return;
       }
 
+      if (count) {
+        setTotalPages(Math.ceil(count / CONVERSATIONS_PER_PAGE));
+      }
+
       if (!data?.length) {
         setConversations([]);
         setLoading(false);
         return;
       }
 
-      if (count) {
-        setTotalPages(Math.ceil(count / CONVERSATIONS_PER_PAGE));
-      }
-
-      // Process the data to get unique conversations by sender_id
+      // Process the data with proper type handling
       const uniqueSenderConversations = new Map<string, Conversation>();
       
       for (const message of data) {
         if (!uniqueSenderConversations.has(message.sender_id)) {
+          const profileData = message.profiles as ProfileData;
           uniqueSenderConversations.set(message.sender_id, {
             sender_id: message.sender_id,
             last_message: message.content,
             created_at: message.created_at,
             last_message_timestamp: message.created_at,
             user_info: {
-              username: message.profiles?.username,
-              avatar_url: message.profiles?.avatar_url,
+              username: profileData?.username ?? undefined,
+              avatar_url: profileData?.avatar_url ?? undefined,
             },
             unread_count: 0
           });

@@ -7,9 +7,14 @@ import {
   ToastProvider,
   ToastTitle,
   ToastViewport,
+  ToastAction,
 } from "@/components/ui/toast"
-import { ToastAction } from "@/components/ui/toast"
-import { ToastAction as ToastActionType } from "@/types/conversation"
+import { ToastAction as CustomToastAction } from "@/types/conversation"
+
+// Type guard to check if action is a CustomToastAction
+const isCustomToastAction = (action: any): action is CustomToastAction => {
+  return action && 'onClick' in action && 'label' in action;
+};
 
 export function Toaster() {
   const { toasts } = useToast()
@@ -25,7 +30,7 @@ export function Toaster() {
                 <ToastDescription>{description}</ToastDescription>
               )}
             </div>
-            {action && 'onClick' in action ? (
+            {action && isCustomToastAction(action) ? (
               <ToastAction altText={action.label} onClick={action.onClick}>
                 {action.label}
               </ToastAction>
