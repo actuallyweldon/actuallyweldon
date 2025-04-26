@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Loader2 } from 'lucide-react';
 import MessageList from '../MessageList';
 import MessageInput from '../MessageInput';
 import { Button } from '@/components/ui/button';
@@ -17,8 +17,25 @@ const ConversationView: React.FC<ConversationViewProps> = ({ userId, onBack }) =
   const isMobile = useIsMobile();
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
+  const [userInfo, setUserInfo] = useState<{ username?: string }>({});
 
   useEffect(() => {
+    const fetchUserInfo = async () => {
+      try {
+        const { data } = await supabase
+          .from('profiles')
+          .select('username')
+          .eq('id', userId)
+          .single();
+
+        if (data) {
+          setUserInfo(data);
+        }
+      } catch (error) {
+        console.error('Error fetching user profile:', error);
+      }
+    };
+
     const fetchMessages = async () => {
       setLoading(true);
       const { data, error } = await supabase
@@ -44,6 +61,7 @@ const ConversationView: React.FC<ConversationViewProps> = ({ userId, onBack }) =
       setLoading(false);
     };
 
+    fetchUserInfo();
     fetchMessages();
 
     // Subscribe to new messages for this user
@@ -71,6 +89,13 @@ const ConversationView: React.FC<ConversationViewProps> = ({ userId, onBack }) =
       supabase.removeChannel(channel);
     };
   }, [userId]);
+
+  const getUserDisplayName = () => {
+    if (userInfo.username) {
+      return userInfo.username;
+    }
+    return `User ${userId.slice(0, 8)}`;
+  };
 
   const handleSendMessage = async (content: string) => {
     const newMessage = {
@@ -103,12 +128,18 @@ const ConversationView: React.FC<ConversationViewProps> = ({ userId, onBack }) =
         )}
         <div>
           <h2 className="text-lg font-semibold text-white">
-            Chat with User {userId.slice(0, 8)}
+            Chat with {getUserDisplayName()}
           </h2>
         </div>
       </div>
       <div className="flex-1 overflow-y-auto">
-        <MessageList messages={messages} isLoading={loading} targetUserId={userId} />
+        {loading ? (
+          <div className="h-full flex items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+          </div>
+        ) : (
+          <MessageList messages={messages} />
+        )}
       </div>
       <MessageInput onSendMessage={handleSendMessage} />
     </div>

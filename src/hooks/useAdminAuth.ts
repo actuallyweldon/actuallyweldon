@@ -1,15 +1,13 @@
 
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useSupabaseAuth } from './useSupabaseAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from './use-toast';
 
 export function useAdminAuth() {
   const { user } = useSupabaseAuth();
-  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [loading, setLoading] = useState(true);
-  const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
@@ -20,18 +18,34 @@ export function useAdminAuth() {
         return;
       }
 
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('is_admin')
-        .eq('id', user.id)
-        .single();
+      try {
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('is_admin')
+          .eq('id', user.id)
+          .single();
 
-      setIsAdmin(!!profile?.is_admin);
+        if (error) {
+          console.error('Error fetching admin status:', error);
+          toast({
+            title: 'Error',
+            description: 'Could not check admin status',
+            variant: 'destructive',
+          });
+          setIsAdmin(false);
+        } else {
+          setIsAdmin(!!profile?.is_admin);
+        }
+      } catch (error) {
+        console.error('Error in admin check:', error);
+        setIsAdmin(false);
+      }
+      
       setLoading(false);
     }
 
     checkAdminStatus();
-  }, [user]);
+  }, [user, toast]);
 
   return { user, isAdmin, loading };
 }

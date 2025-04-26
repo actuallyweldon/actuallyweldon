@@ -3,11 +3,18 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { format } from 'date-fns';
+import { Loader2 } from 'lucide-react';
+
+interface UserInfo {
+  email?: string;
+  username?: string;
+}
 
 interface Conversation {
   sender_id: string;
   last_message: string;
   created_at: string;
+  user_info?: UserInfo;
 }
 
 interface ConversationListProps {
@@ -38,16 +45,35 @@ const ConversationList: React.FC<ConversationListProps> = ({ onSelectUser }) => 
       const uniqueConversations: Conversation[] = [];
       const processedSenders = new Set();
 
-      data?.forEach((message) => {
+      for (const message of data || []) {
         if (!processedSenders.has(message.sender_id)) {
-          uniqueConversations.push({
+          const conversation: Conversation = {
             sender_id: message.sender_id,
             last_message: message.content,
             created_at: message.created_at
-          });
+          };
+          
+          // Try to fetch user email if this is an authenticated user
+          try {
+            const { data: profileData } = await supabase
+              .from('profiles')
+              .select('username')
+              .eq('id', message.sender_id)
+              .single();
+              
+            if (profileData) {
+              conversation.user_info = {
+                username: profileData.username
+              };
+            }
+          } catch (err) {
+            console.log('No profile found for user', message.sender_id);
+          }
+          
+          uniqueConversations.push(conversation);
           processedSenders.add(message.sender_id);
         }
-      });
+      }
 
       setConversations(uniqueConversations);
       setLoading(false);
@@ -60,7 +86,7 @@ const ConversationList: React.FC<ConversationListProps> = ({ onSelectUser }) => 
       .channel('public:messages')
       .on('postgres_changes', 
         { event: 'INSERT', schema: 'public', table: 'messages' },
-        (payload) => {
+        async (payload) => {
           const newMessage = payload.new as any;
           
           setConversations(prev => {
@@ -98,10 +124,24 @@ const ConversationList: React.FC<ConversationListProps> = ({ onSelectUser }) => 
     };
   }, []);
 
+  const getUserDisplayName = (conversation: Conversation) => {
+    if (conversation.user_info?.username) {
+      return conversation.user_info.username;
+    }
+    return `User ${conversation.sender_id.slice(0, 8)}`;
+  };
+
+  const getAvatarLetters = (conversation: Conversation) => {
+    if (conversation.user_info?.username) {
+      return conversation.user_info.username.slice(0, 2).toUpperCase();
+    }
+    return conversation.sender_id.slice(0, 2).toUpperCase();
+  };
+
   if (loading) {
     return (
       <div className="h-full flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-400"></div>
+        <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
       </div>
     );
   }
@@ -109,7 +149,7 @@ const ConversationList: React.FC<ConversationListProps> = ({ onSelectUser }) => 
   return (
     <div className="h-full overflow-y-auto">
       <div className="p-4 border-b border-gray-800">
-        <h2 className="text-lg font-semibold text-white">Messages</h2>
+        <h2 className="text-lg font-semibold text-white">All Conversations</h2>
       </div>
       {conversations.length === 0 ? (
         <div className="p-4 text-center text-gray-400">
@@ -125,12 +165,12 @@ const ConversationList: React.FC<ConversationListProps> = ({ onSelectUser }) => 
             <div className="flex items-center space-x-4">
               <Avatar>
                 <AvatarFallback>
-                  {conversation.sender_id.slice(0, 2).toUpperCase()}
+                  {getAvatarLetters(conversation)}
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-white truncate">
-                  User {conversation.sender_id.slice(0, 8)}
+                  {getUserDisplayName(conversation)}
                 </p>
                 <p className="text-sm text-gray-400 truncate">
                   {conversation.last_message}
