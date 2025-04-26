@@ -4,7 +4,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { format } from 'date-fns';
 import { Loader2, UserRound } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
 import ProfileDropdown from '../ProfileDropdown';
 import { User } from '@supabase/supabase-js';
 
@@ -35,7 +34,6 @@ const ConversationList: React.FC<ConversationListProps> = ({
 }) => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
-  const { toast } = useToast();
 
   const fetchConversations = async () => {
     setLoading(true);
@@ -48,11 +46,6 @@ const ConversationList: React.FC<ConversationListProps> = ({
 
       if (senderError) {
         console.error('Error fetching sender data:', senderError);
-        toast({
-          title: "Error",
-          description: "Could not load conversations",
-          variant: "destructive"
-        });
         setLoading(false);
         return;
       }
@@ -109,11 +102,6 @@ const ConversationList: React.FC<ConversationListProps> = ({
       setConversations(validConversations);
     } catch (err) {
       console.error('Error processing conversations:', err);
-      toast({
-        title: "Error",
-        description: "Could not process conversation data",
-        variant: "destructive"
-      });
     } finally {
       setLoading(false);
     }
@@ -194,7 +182,7 @@ const ConversationList: React.FC<ConversationListProps> = ({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [toast]);
+  }, []);
 
   const getUserDisplayName = (conversation: Conversation) => {
     if (conversation.user_info?.username) {
@@ -261,3 +249,4 @@ const ConversationList: React.FC<ConversationListProps> = ({
 };
 
 export default ConversationList;
+
