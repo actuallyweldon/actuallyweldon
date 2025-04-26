@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -230,7 +231,7 @@ const ConversationList: React.FC<ConversationListProps> = ({ onSelectUser }) => 
     <div className="h-full flex flex-col overflow-hidden">
       <div className="p-4 border-b border-gray-800 flex items-center">
         {getConnectionStatusIndicator()}
-        <h2 className="text-lg font-semibold text-white">All Conversations</h2>
+        <h2 className="text-lg font-semibold text-white">Messages</h2>
       </div>
       
       <div className="flex-1 overflow-y-auto">

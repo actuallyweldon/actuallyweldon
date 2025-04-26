@@ -23,7 +23,6 @@ const AdminLayout = () => {
     return (
       <div className="h-screen bg-black">
         <div className="flex justify-between items-center p-4 border-b border-gray-800">
-          <h1 className="text-white text-lg font-semibold">Admin Dashboard</h1>
           <ProfileDropdown
             isAuthenticated={!!user}
             onAuthClick={() => {}}
@@ -48,7 +47,6 @@ const AdminLayout = () => {
     <div className="flex h-screen bg-black">
       <div className="w-[30%] border-r border-gray-800">
         <div className="flex justify-between items-center p-4 border-b border-gray-800">
-          <h1 className="text-white text-lg font-semibold">Admin Dashboard</h1>
           <ProfileDropdown
             isAuthenticated={!!user}
             onAuthClick={() => {}}
