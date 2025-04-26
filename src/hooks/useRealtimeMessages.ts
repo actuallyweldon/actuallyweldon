@@ -11,6 +11,20 @@ export const useRealtimeMessages = (
 ) => {
   const handleNewMessage = useCallback((newMessage: any) => {
     console.log('Processing new message:', newMessage);
+
+    // Check if this message is relevant for the current user/session
+    const isRelevant = userId 
+      ? (newMessage.sender_id === userId || 
+         (newMessage.is_admin && newMessage.recipient_id === userId))
+      : (newMessage.session_id === sessionId || 
+         (newMessage.is_admin && newMessage.recipient_id === sessionId));
+
+    if (!isRelevant) {
+      console.log('Message not relevant for current user/session');
+      return;
+    }
+
+    console.log('Message is relevant, formatting and adding to state');
     const formattedMessage = formatMessage(newMessage);
     onNewMessage(formattedMessage);
     
@@ -18,12 +32,12 @@ export const useRealtimeMessages = (
       console.log('Playing message sound for incoming message');
       playMessageSound();
     }
-  }, [userId, onNewMessage]);
+  }, [userId, sessionId, onNewMessage]);
 
   useEffect(() => {
     if (!sessionId && !userId) return;
 
-    console.log('Setting up real-time listener');
+    console.log('Setting up real-time listener for:', { userId, sessionId });
     const channel = supabase
       .channel('public-messages')
       .on('postgres_changes', 
@@ -31,15 +45,7 @@ export const useRealtimeMessages = (
         (payload) => {
           console.log('New message received:', payload);
           const newMessage = payload.new as any;
-          
-          if (userId && (newMessage.sender_id === userId || 
-              (newMessage.is_admin && (!newMessage.recipient_id || newMessage.recipient_id === userId)))) {
-            console.log('Adding new message for authenticated user');
-            handleNewMessage(newMessage);
-          } else if (!userId && newMessage.session_id === sessionId) {
-            console.log('Adding new message for anonymous session');
-            handleNewMessage(newMessage);
-          }
+          handleNewMessage(newMessage);
         }
       )
       .subscribe((status) => {

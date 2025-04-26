@@ -21,14 +21,7 @@ export const useMessages = (userId: string | null, sessionId: string | null) => 
 
   const { setTypingStatus, typingUsers } = useTypingIndicators(userId, sessionId);
 
-  // Fetch initial messages
   useEffect(() => {
-    if (!sessionId && !userId) {
-      console.log('No session or user ID provided, skipping messages fetch');
-      setIsLoading(false);
-      return;
-    }
-
     const fetchMessages = async () => {
       console.log('Fetching messages for:', { userId, sessionId });
       try {
@@ -38,11 +31,19 @@ export const useMessages = (userId: string | null, sessionId: string | null) => 
           .select('*');
 
         if (userId) {
+          // For authenticated users
           console.log('Fetching messages for authenticated user:', userId);
-          query.or(`sender_id.eq.${userId},and(is_admin.eq.true,recipient_id.eq.${userId})`);
+          query.or(
+            `sender_id.eq.${userId},` +
+            `and(is_admin.eq.true,recipient_id.eq.${userId})`
+          );
         } else if (sessionId) {
+          // For anonymous users, fetch both their messages and admin replies
           console.log('Fetching messages for anonymous session:', sessionId);
-          query.eq('session_id', sessionId);
+          query.or(
+            `session_id.eq.${sessionId},` +
+            `and(is_admin.eq.true,recipient_id.eq.${sessionId})`
+          );
         }
 
         const { data, error: fetchError } = await query.order('created_at', { ascending: true });
