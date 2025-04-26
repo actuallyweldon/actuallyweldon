@@ -1,47 +1,35 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { CircleUser, LogOut, Settings } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { Settings } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import ProfileDropdown from './ProfileDropdown';
 
 interface ChatHeaderProps {
   onAuthClick: () => void;
   isAuthenticated: boolean;
   isAdmin?: boolean;
   onSignOut?: () => void;
+  email?: string | null;
 }
 
 const ChatHeader: React.FC<ChatHeaderProps> = ({ 
   onAuthClick, 
   isAuthenticated, 
   isAdmin,
-  onSignOut 
+  onSignOut,
+  email
 }) => {
-  const { toast } = useToast();
-  
-  const handleProfileClick = () => {
-    if (isAuthenticated) {
-      toast({
-        title: "Signed in",
-        description: "You are currently signed in"
-      });
-    } else {
-      onAuthClick();
-    }
-  };
-  
   return (
     <div className="flex justify-between items-center p-4 bg-black border-b border-gray-800">
       <div className="w-10">
-        {isAuthenticated && onSignOut && (
+        {isAuthenticated && (
           <Button 
             variant="ghost" 
             size="icon"
             className="text-imessage-header"
-            onClick={onSignOut}
           >
-            <LogOut className="h-6 w-6" />
+            <Settings className="h-6 w-6" />
           </Button>
         )}
       </div>
@@ -55,24 +43,12 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
           </Link>
         )}
       </h1>
-      {!isAuthenticated ? (
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          className="text-imessage-header"
-          onClick={handleProfileClick}
-        >
-          <CircleUser className="h-6 w-6" />
-        </Button>
-      ) : (
-        <Button 
-          variant="ghost" 
-          size="icon"
-          className="text-imessage-header"
-        >
-          <Settings className="h-6 w-6" />
-        </Button>
-      )}
+      <ProfileDropdown
+        isAuthenticated={isAuthenticated}
+        onAuthClick={onAuthClick}
+        onSignOut={onSignOut}
+        email={email}
+      />
     </div>
   );
 };

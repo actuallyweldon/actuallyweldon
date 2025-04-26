@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import ChatHeader from '../components/ChatHeader';
@@ -135,6 +134,7 @@ const Index = () => {
         isAuthenticated={!!user}
         isAdmin={isAdmin}
         onSignOut={signOut}
+        email={user?.email}
       />
       <MessageList 
         messages={user ? messages.filter(m => m.sender_id === user.id) : []} 
