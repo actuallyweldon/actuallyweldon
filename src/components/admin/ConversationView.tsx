@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Message } from '@/types/message';
 import ConversationHeader from './ConversationHeader';
 import { formatMessage } from '@/utils/messageFormatting';
+import { useSupabaseAuth } from '@/hooks/useSupabaseAuth';
 
 interface ConversationViewProps {
   userId: string;
@@ -16,63 +17,68 @@ interface ConversationViewProps {
 
 const ConversationView: React.FC<ConversationViewProps> = ({ userId, onBack }) => {
   const isMobile = useIsMobile();
+  const { user } = useSupabaseAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
   const [userInfo, setUserInfo] = useState<{ username?: string }>({});
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'connecting'>('connecting');
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchUserInfo = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('username')
-          .eq('id', userId)
-          .maybeSingle();
+  const fetchUserInfo = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('username')
+        .eq('id', userId)
+        .maybeSingle();
 
-        if (error) {
-          console.error('Error fetching user profile:', error);
-          return;
-        }
-
-        if (data) {
-          setUserInfo(data);
-        }
-      } catch (error) {
+      if (error) {
         console.error('Error fetching user profile:', error);
+        return;
       }
-    };
 
-    const fetchMessages = async () => {
-      setLoading(true);
-      setError(null);
+      if (data) {
+        setUserInfo(data);
+      }
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+    }
+  };
+
+  const fetchMessages = async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const { data, error } = await supabase
+        .from('messages')
+        .select('*')
+        .or(
+          `and(sender_id.eq.${userId},recipient_id.is.null),` +
+          `and(is_admin.eq.true,recipient_id.eq.${userId}),` +
+          `and(sender_id.eq.${userId},is_admin.eq.true)`
+        )
+        .order('created_at', { ascending: true });
       
-      try {
-        const { data, error } = await supabase
-          .from('messages')
-          .select('*')
-          .or(`sender_id.eq.${userId},recipient_id.eq.${userId}`)
-          .order('created_at', { ascending: true });
-        
-        if (error) {
-          console.error('Error fetching messages:', error);
-          setError(`Could not load messages: ${error.message}`);
-          return;
-        }
-
-        if (data) {
-          const formattedMessages = data.map(formatMessage);
-          setMessages(formattedMessages);
-        }
-      } catch (error) {
-        console.error('Error processing messages:', error);
-        setError(`Could not process messages: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      } finally {
-        setLoading(false);
+      if (error) {
+        console.error('Error fetching messages:', error);
+        setError(`Could not load messages: ${error.message}`);
+        return;
       }
-    };
 
+      if (data) {
+        const formattedMessages = data.map(formatMessage);
+        setMessages(formattedMessages);
+      }
+    } catch (error) {
+      console.error('Error processing messages:', error);
+      setError(`Could not process messages: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchUserInfo();
     fetchMessages();
 
@@ -116,13 +122,22 @@ const ConversationView: React.FC<ConversationViewProps> = ({ userId, onBack }) =
   const handleSendMessage = async (content: string) => {
     try {
       setError(null);
+      
+      if (!user?.id) {
+        console.error('No admin user ID available');
+        setError('Not authorized to send messages');
+        return;
+      }
+
       const newMessage = {
         content,
-        sender_id: null,
+        sender_id: user.id,
         is_admin: true,
         recipient_id: userId,
         session_id: null
       };
+
+      console.log('Sending admin message:', newMessage);
 
       const { error: insertError } = await supabase
         .from('messages')
