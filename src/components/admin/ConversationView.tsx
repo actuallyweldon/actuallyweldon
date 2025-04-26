@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import MessageList from '../MessageList';
@@ -81,11 +80,11 @@ const ConversationView: React.FC<ConversationViewProps> = ({ userId, onBack }) =
           setMessages(formattedMessages);
         }
       } catch (error) {
-        console.error('Error fetching messages:', error);
-        setError(`Could not load messages: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        console.error('Error processing messages:', error);
+        setError(`Could not process messages: ${error instanceof Error ? error.message : 'Unknown error'}`);
         toast({
           title: "Error",
-          description: "Could not load messages",
+          description: "Could not process messages",
           variant: "destructive"
         });
       } finally {
@@ -96,18 +95,20 @@ const ConversationView: React.FC<ConversationViewProps> = ({ userId, onBack }) =
     fetchUserInfo();
     fetchMessages();
 
-    // Set up real-time subscription for new messages with fixed filter syntax
+    // Set up real-time subscription for new messages
     const channel = supabase
       .channel(`messages-${userId}`)
       .on('postgres_changes', 
         { 
           event: 'INSERT', 
           schema: 'public', 
-          table: 'messages',
-          filter: `sender_id=eq.${userId}` 
+          table: 'messages'
         },
         (payload) => {
           const newMessage = payload.new as any;
+          // Only add messages for this specific user conversation
+          if (newMessage.sender_id !== userId && !newMessage.is_admin) return;
+
           const formattedMessage: Message = {
             id: newMessage.id,
             content: newMessage.content,
@@ -117,32 +118,8 @@ const ConversationView: React.FC<ConversationViewProps> = ({ userId, onBack }) =
             sender: newMessage.is_admin ? 'admin' : 'user',
             timestamp: newMessage.created_at
           };
-          setMessages(prev => [...prev, formattedMessage]);
-        }
-      )
-      // Fix the filter syntax for admin messages
-      .on('postgres_changes', 
-        { 
-          event: 'INSERT', 
-          schema: 'public', 
-          table: 'messages',
-          filter: `is_admin=eq.true` 
-        },
-        (payload) => {
-          const newMessage = payload.new as any;
-          // Only add messages for this specific user conversation
-          if (newMessage.sender_id !== userId) return;
-
-          const formattedMessage: Message = {
-            id: newMessage.id,
-            content: newMessage.content,
-            sender_id: newMessage.sender_id,
-            is_admin: newMessage.is_admin,
-            created_at: newMessage.created_at,
-            sender: 'admin',
-            timestamp: newMessage.created_at
-          };
-          setMessages(prev => [...prev, formattedMessage]);
+          
+          setMessages((current) => [...current, formattedMessage]);
         }
       )
       .subscribe(status => {
