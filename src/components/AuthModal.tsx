@@ -8,7 +8,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { getAuthPreferences, saveAuthPreferences } from '@/utils/localStorage';
 
 interface AuthModalProps {
@@ -83,20 +83,40 @@ const AuthModal: React.FC<AuthModalProps> = ({
             Welcome
           </DialogTitle>
         </DialogHeader>
-        <div className="flex items-center justify-center gap-4 mb-4">
-          <span className={`text-sm ${!isLogin ? 'text-primary' : 'text-muted-foreground'}`}>Sign Up</span>
-          <Switch
-            checked={isLogin}
-            onCheckedChange={toggleAuthMode}
-            aria-label="Toggle authentication mode"
-          />
-          <span className={`text-sm ${isLogin ? 'text-primary' : 'text-muted-foreground'}`}>Sign In</span>
+        
+        <div className="flex justify-center mb-6">
+          <ToggleGroup
+            type="single"
+            value={isLogin ? "signin" : "signup"}
+            onValueChange={(value) => {
+              if (value) {
+                setIsLogin(value === "signin");
+                saveAuthPreferences({
+                  hasVisited: true,
+                  preferredAuthMode: value === "signin" ? "login" : "signup"
+                });
+              }
+            }}
+            className="bg-muted p-1 rounded-lg"
+          >
+            <ToggleGroupItem 
+              value="signup" 
+              aria-label="Sign Up"
+              className="flex-1 px-6 data-[state=on]:bg-background data-[state=on]:text-foreground rounded transition-all"
+            >
+              Sign Up
+            </ToggleGroupItem>
+            <ToggleGroupItem 
+              value="signin" 
+              aria-label="Sign In"
+              className="flex-1 px-6 data-[state=on]:bg-background data-[state=on]:text-foreground rounded transition-all"
+            >
+              Sign In
+            </ToggleGroupItem>
+          </ToggleGroup>
         </div>
+
         <form onSubmit={handleSubmit} className="space-y-3">
-          <Button type="submit" className="w-full mb-4" disabled={isLoading}>
-            {isLogin ? 'Sign In' : 'Sign Up'}
-          </Button>
-          
           <div className={`grid w-full items-center gap-1.5 transition-all duration-200 ${isLogin ? 'h-0 opacity-0 overflow-hidden' : 'h-auto opacity-100'}`}>
             <Label htmlFor="name">Name</Label>
             <Input
@@ -110,6 +130,7 @@ const AuthModal: React.FC<AuthModalProps> = ({
               tabIndex={isLogin ? -1 : 1}
             />
           </div>
+          
           <div className="grid w-full items-center gap-1.5">
             <Label htmlFor="email">Email</Label>
             <Input
@@ -123,6 +144,7 @@ const AuthModal: React.FC<AuthModalProps> = ({
               tabIndex={isLogin ? 1 : 2}
             />
           </div>
+          
           <div className="grid w-full items-center gap-1.5">
             <Label htmlFor="password">Password</Label>
             <Input
@@ -135,6 +157,10 @@ const AuthModal: React.FC<AuthModalProps> = ({
               tabIndex={isLogin ? 2 : 3}
             />
           </div>
+
+          <Button type="submit" className="w-full mt-6" disabled={isLoading}>
+            {isLogin ? 'Sign In' : 'Sign Up'}
+          </Button>
         </form>
       </DialogContent>
     </Dialog>
