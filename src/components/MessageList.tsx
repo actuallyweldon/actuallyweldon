@@ -30,7 +30,7 @@ const MessageList: React.FC<MessageListProps> = ({ messages, isLoading }) => {
   // Map messages to format expected by MessageBubble
   const formattedMessages = messages.map(message => ({
     ...message,
-    sender: message.is_admin ? 'admin' : 'user',
+    sender: message.is_admin ? 'admin' as const : 'user' as const,
     timestamp: message.created_at
   }));
 
