@@ -5,7 +5,6 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { format } from 'date-fns';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { Pagination, PaginationContent, PaginationItem, PaginationLink } from '@/components/ui/pagination';
 
 interface UserInfo {
   email?: string;
@@ -23,26 +22,21 @@ interface ConversationListProps {
   onSelectUser: (userId: string) => void;
 }
 
-const CONVERSATIONS_PER_PAGE = 10;
-
 const ConversationList: React.FC<ConversationListProps> = ({ onSelectUser }) => {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'connecting'>('connecting');
   const { toast } = useToast();
 
-  const fetchConversations = async (page: number) => {
+  const fetchConversations = async () => {
     setLoading(true);
     
     try {
-      // First, get unique sender_ids with their most recent message
-      const { data: senderData, error: senderError, count } = await supabase
+      // Get all unique sender_ids with their most recent message
+      const { data: senderData, error: senderError } = await supabase
         .from('messages')
-        .select('sender_id', { count: 'exact' })
-        .order('created_at', { ascending: false })
-        .range((page - 1) * CONVERSATIONS_PER_PAGE, page * CONVERSATIONS_PER_PAGE - 1);
+        .select('sender_id')
+        .order('created_at', { ascending: false });
 
       if (senderError) {
         console.error('Error fetching sender data:', senderError);
@@ -59,11 +53,6 @@ const ConversationList: React.FC<ConversationListProps> = ({ onSelectUser }) => 
         setConversations([]);
         setLoading(false);
         return;
-      }
-
-      // Calculate total pages
-      if (count) {
-        setTotalPages(Math.ceil(count / CONVERSATIONS_PER_PAGE));
       }
 
       // Get unique sender IDs
@@ -128,7 +117,7 @@ const ConversationList: React.FC<ConversationListProps> = ({ onSelectUser }) => 
   };
 
   useEffect(() => {
-    fetchConversations(currentPage);
+    fetchConversations();
 
     // Setup WebSocket connection for real-time updates
     const channel = supabase
@@ -163,8 +152,8 @@ const ConversationList: React.FC<ConversationListProps> = ({ onSelectUser }) => 
                 return updated.sort((a, b) => 
                   new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
                 );
-              } else if (currentPage === 1) {
-                // Add new conversation only if on first page
+              } else {
+                // Add new conversation
                 return [{
                   sender_id: newMessage.sender_id,
                   last_message: newMessage.content,
@@ -174,7 +163,6 @@ const ConversationList: React.FC<ConversationListProps> = ({ onSelectUser }) => 
                   }
                 }, ...prev];
               }
-              return prev;
             });
           } catch (err) {
             console.error('Error handling real-time message:', err);
@@ -219,11 +207,7 @@ const ConversationList: React.FC<ConversationListProps> = ({ onSelectUser }) => 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [toast, currentPage]);
-
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-  };
+  }, [toast]);
 
   const getUserDisplayName = (conversation: Conversation) => {
     if (conversation.user_info?.username) {
@@ -291,32 +275,13 @@ const ConversationList: React.FC<ConversationListProps> = ({ onSelectUser }) => 
                   </p>
                 </div>
                 <div className="text-xs text-gray-500">
-                  {format(new Date(conversation.created_at), 'MMM d, h:mm a')}
+                  {format(new Date(conversation.created_at), 'MMM d')}
                 </div>
               </div>
             </div>
           ))
         )}
       </div>
-      
-      {totalPages > 1 && (
-        <div className="p-2 border-t border-gray-800">
-          <Pagination>
-            <PaginationContent>
-              {Array.from({ length: totalPages }).map((_, index) => (
-                <PaginationItem key={index}>
-                  <PaginationLink
-                    isActive={currentPage === index + 1}
-                    onClick={() => handlePageChange(index + 1)}
-                  >
-                    {index + 1}
-                  </PaginationLink>
-                </PaginationItem>
-              ))}
-            </PaginationContent>
-          </Pagination>
-        </div>
-      )}
     </div>
   );
 };
