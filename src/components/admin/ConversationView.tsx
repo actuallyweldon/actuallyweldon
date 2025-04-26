@@ -7,6 +7,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { supabase } from '@/integrations/supabase/client';
 import { Message } from '@/types/message';
 import ConversationHeader from './ConversationHeader';
+import { formatMessage } from '@/utils/messageFormatting';
 
 interface ConversationViewProps {
   userId: string;
@@ -51,11 +52,7 @@ const ConversationView: React.FC<ConversationViewProps> = ({ userId, onBack }) =
         const { data, error } = await supabase
           .from('messages')
           .select('*')
-          .or(
-            `and(sender_id.eq.${userId},recipient_id.is.null),` +
-            `and(is_admin.eq.true,recipient_id.eq.${userId}),` +
-            `and(sender_id.eq.${userId},is_admin.eq.true)`
-          )
+          .or(`sender_id.eq.${userId},recipient_id.eq.${userId}`)
           .order('created_at', { ascending: true });
         
         if (error) {
@@ -65,15 +62,7 @@ const ConversationView: React.FC<ConversationViewProps> = ({ userId, onBack }) =
         }
 
         if (data) {
-          const formattedMessages = data.map((msg): Message => ({
-            id: msg.id,
-            content: msg.content,
-            sender_id: msg.sender_id,
-            is_admin: msg.is_admin,
-            created_at: msg.created_at,
-            sender: msg.is_admin ? 'admin' : 'user',
-            timestamp: msg.created_at
-          }));
+          const formattedMessages = data.map(formatMessage);
           setMessages(formattedMessages);
         }
       } catch (error) {
@@ -97,18 +86,9 @@ const ConversationView: React.FC<ConversationViewProps> = ({ userId, onBack }) =
         },
         (payload) => {
           const newMessage = payload.new as any;
-          if (newMessage.recipient_id !== userId && newMessage.sender_id !== userId) return;
+          if (newMessage.sender_id !== userId && newMessage.recipient_id !== userId) return;
 
-          const formattedMessage: Message = {
-            id: newMessage.id,
-            content: newMessage.content,
-            sender_id: newMessage.sender_id,
-            is_admin: newMessage.is_admin,
-            created_at: newMessage.created_at,
-            sender: newMessage.is_admin ? 'admin' : 'user',
-            timestamp: newMessage.created_at
-          };
-          
+          const formattedMessage = formatMessage(newMessage);
           setMessages((current) => [...current, formattedMessage]);
         }
       )
@@ -138,9 +118,10 @@ const ConversationView: React.FC<ConversationViewProps> = ({ userId, onBack }) =
       setError(null);
       const newMessage = {
         content,
-        sender_id: userId,
+        sender_id: null,
         is_admin: true,
-        recipient_id: userId
+        recipient_id: userId,
+        session_id: null
       };
 
       const { error: insertError } = await supabase
