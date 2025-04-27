@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Message } from '@/types/message';
 import { supabase } from '@/integrations/supabase/client';
@@ -34,6 +35,7 @@ export const useMessages = (userId: string | null, sessionId: string | null) => 
           .select('*')
           .order('created_at', { ascending: true });
         
+        // No need for explicit filtering as RLS policies will handle this
         const { data, error: fetchError } = await query;
 
         if (fetchError) {
@@ -41,7 +43,11 @@ export const useMessages = (userId: string | null, sessionId: string | null) => 
         }
 
         const formattedMessages = (data || []).map(formatMessage);
+        
+        // Group messages by thread for possible future use
         const threadedMessages = groupMessagesByThread(formattedMessages);
+        console.log('Messages grouped by thread:', threadedMessages);
+        
         setMessages(formattedMessages);
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
