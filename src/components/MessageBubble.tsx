@@ -17,7 +17,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
   
   return (
     <div className={cn(
-      'animate-message-appear flex mb-4',  // Increased from mb-2 to mb-4
+      'animate-message-appear flex mb-2',  // Reverted from mb-4 back to mb-2
       message.is_admin ? 'justify-start' : 'justify-end'
     )}>
       <div 
