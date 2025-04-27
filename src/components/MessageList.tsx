@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef } from 'react';
 import { Message } from '@/types/message';
 import { Loader2 } from 'lucide-react';
@@ -9,15 +8,28 @@ interface MessageListProps {
   isLoading?: boolean;
   targetUserId?: string;
   showTypingIndicator?: boolean;
+  onMarkMessagesRead?: (messageIds: string[]) => void;
 }
 
 const MessageList: React.FC<MessageListProps> = ({ 
   messages, 
   isLoading, 
   targetUserId,
-  showTypingIndicator = false
+  showTypingIndicator = false,
+  onMarkMessagesRead
 }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    // Mark unread messages as read when they're loaded and visible
+    const unreadMessages = messages
+      .filter(msg => msg.message_status !== 'read')
+      .map(msg => msg.id);
+      
+    if (unreadMessages.length > 0 && onMarkMessagesRead) {
+      onMarkMessagesRead(unreadMessages);
+    }
+  }, [messages, onMarkMessagesRead]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });

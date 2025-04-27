@@ -1,4 +1,3 @@
-
 import React from 'react';
 import MessageList from './MessageList';
 import MessageInput from './MessageInput';
@@ -17,7 +16,15 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   sessionId,
   onAuthRequired,
 }) => {
-  const { messages, isLoading, error, sendMessage, setTypingStatus, typingUsers } = useMessages(userId, sessionId);
+  const { 
+    messages, 
+    isLoading, 
+    error, 
+    sendMessage, 
+    setTypingStatus, 
+    typingUsers,
+    markMessagesAsRead 
+  } = useMessages(userId, sessionId);
 
   const handleSendMessage = async (content: string) => {
     const success = await sendMessage(content);
@@ -46,7 +53,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       <MessageList 
         messages={messages}
         isLoading={isLoading}
-        showTypingIndicator={isTypingIndicatorVisible}
+        showTypingIndicator={typingUsers.length > 0}
+        onMarkMessagesRead={markMessagesAsRead}
       />
       
       {isTypingIndicatorVisible && (

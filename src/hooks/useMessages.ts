@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Message } from '@/types/message';
 import { supabase } from '@/integrations/supabase/client';
@@ -20,6 +19,19 @@ export const useMessages = (userId: string | null, sessionId: string | null) => 
 
   useRealtimeMessages(userId, sessionId, addNewMessage);
   const { setTypingStatus, typingUsers } = useTypingIndicators(userId, sessionId);
+
+  const markMessagesAsRead = async (messageIds: string[]) => {
+    try {
+      for (const messageId of messageIds) {
+        await supabase.rpc('update_message_status', { 
+          message_id: messageId, 
+          new_status: 'read' as const 
+        });
+      }
+    } catch (err) {
+      console.error('Error marking messages as read:', err);
+    }
+  };
 
   useEffect(() => {
     const fetchMessages = async () => {
@@ -83,7 +95,7 @@ export const useMessages = (userId: string | null, sessionId: string | null) => 
         is_admin: false,
         recipient_id: null,
         session_id: userId ? null : sessionId,
-        message_status: 'sent' as const // Using type assertion to match the enum type
+        message_status: 'sent' as const
       };
 
       const { error } = await supabase.from('messages').insert(newMessage);
@@ -111,6 +123,7 @@ export const useMessages = (userId: string | null, sessionId: string | null) => 
     error, 
     sendMessage, 
     setTypingStatus, 
-    typingUsers 
+    typingUsers,
+    markMessagesAsRead
   };
 };
