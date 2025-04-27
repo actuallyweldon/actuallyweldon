@@ -18,10 +18,9 @@ const AdminLayout = () => {
     setSelectedUserId(null);
   };
 
-  // Mobile layout with conditional rendering
   if (isMobile) {
     return (
-      <div className="h-screen w-screen bg-black overflow-hidden">
+      <div className="h-screen w-screen bg-black">
         <div className="relative h-full transition-transform duration-300 ease-in-out">
           {!selectedUserId ? (
             <ConversationList 
@@ -41,11 +40,10 @@ const AdminLayout = () => {
     );
   }
 
-  // Desktop layout with fixed side panel
   return (
-    <div className="h-screen w-screen bg-black overflow-hidden">
-      <div className="grid h-full" style={{ gridTemplateColumns: '300px 1fr' }}>
-        <div className="h-full overflow-hidden border-r border-gray-800">
+    <div className="h-screen w-screen bg-black">
+      <div className="grid h-full grid-cols-[300px_1fr]">
+        <div className="h-full border-r border-gray-800">
           <ConversationList 
             onSelectUser={handleSelectUser}
             user={user}
@@ -53,7 +51,7 @@ const AdminLayout = () => {
             onSignOut={signOut}
           />
         </div>
-        <div className="h-full overflow-hidden">
+        <div className="h-full">
           {selectedUserId ? (
             <ConversationView userId={selectedUserId} />
           ) : (
