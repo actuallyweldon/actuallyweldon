@@ -16,7 +16,7 @@ export const useRealtimeMessages = (
   const { toast } = useToast();
   const retryTimeoutRef = useRef<NodeJS.Timeout>();
   const isInitializedRef = useRef(false);
-  const updateQueueRef = useRef<{id: string, status: string}[]>([]);
+  const updateQueueRef = useRef<{id: string, status: 'sent' | 'delivered' | 'read'}[]>([]);
   const processingStatusUpdateRef = useRef(false);
 
   const handleNewMessage = useCallback((newMessage: any) => {
