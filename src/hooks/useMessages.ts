@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Message } from '@/types/message';
 import { supabase } from '@/integrations/supabase/client';
@@ -6,6 +5,7 @@ import { useToast } from './use-toast';
 import { useRealtimeMessages } from './useRealtimeMessages';
 import { useTypingIndicators } from './useTypingIndicators';
 import { formatMessage } from '@/utils/messageFormatting';
+import { groupMessagesByThread } from '@/utils/messageThreading';
 
 export const useMessages = (userId: string | null, sessionId: string | null) => {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -34,12 +34,6 @@ export const useMessages = (userId: string | null, sessionId: string | null) => 
           .select('*')
           .order('created_at', { ascending: true });
         
-        if (userId) {
-          query = query.or(`sender_id.eq.${userId},recipient_id.eq.${userId}`);
-        } else if (sessionId) {
-          query = query.or(`session_id.eq.${sessionId},recipient_id.eq.${sessionId}`);
-        }
-
         const { data, error: fetchError } = await query;
 
         if (fetchError) {
@@ -47,6 +41,7 @@ export const useMessages = (userId: string | null, sessionId: string | null) => 
         }
 
         const formattedMessages = (data || []).map(formatMessage);
+        const threadedMessages = groupMessagesByThread(formattedMessages);
         setMessages(formattedMessages);
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';

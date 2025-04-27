@@ -14,23 +14,7 @@ export const useRealtimeMessages = (
   const handleNewMessage = useCallback((newMessage: any) => {
     console.log('Processing new message:', newMessage);
     
-    if (!userId && !sessionId) {
-      console.log('No user ID or session ID available, ignoring message');
-      return;
-    }
-
-    const isRelevant = userId 
-      ? (newMessage.sender_id === userId || 
-         (newMessage.is_admin && newMessage.recipient_id === userId))
-      : (newMessage.session_id === sessionId || 
-         (newMessage.is_admin && newMessage.recipient_id === sessionId));
-
-    if (!isRelevant) {
-      console.log('Message not relevant for current user/session');
-      return;
-    }
-
-    console.log('Message is relevant, formatting and adding to state');
+    // RLS policies will handle message visibility, so we can simplify our checks
     const formattedMessage = formatMessage(newMessage);
     onNewMessage(formattedMessage);
     
@@ -58,11 +42,6 @@ export const useRealtimeMessages = (
   }, [userId, sessionId, onNewMessage]);
 
   useEffect(() => {
-    if (!sessionId && !userId) {
-      console.log('No user ID or session ID available, not setting up listener');
-      return;
-    }
-
     // Clean up previous channel if it exists
     if (channelRef.current) {
       console.log('Cleaning up previous message channel');
@@ -70,7 +49,6 @@ export const useRealtimeMessages = (
       channelRef.current = null;
     }
 
-    // Create a unique channel name for each user/session
     const channelName = `messages-${userId || sessionId}-${Date.now()}`;
     console.log('Setting up real-time listener:', { userId, sessionId, channelName });
     
