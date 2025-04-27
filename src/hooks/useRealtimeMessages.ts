@@ -3,13 +3,14 @@ import { useCallback, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { formatMessage } from '@/utils/messageFormatting';
 import { playMessageSound } from '@/utils/sound';
+import { RealtimeChannel } from '@supabase/supabase-js';
 
 export const useRealtimeMessages = (
   userId: string | null,
   sessionId: string | null,
   onNewMessage: (message: any) => void
 ) => {
-  const channelRef = useRef<any>(null);
+  const channelRef = useRef<RealtimeChannel | null>(null);
 
   const handleNewMessage = useCallback((newMessage: any) => {
     console.log('Processing new message:', newMessage);
@@ -42,35 +43,71 @@ export const useRealtimeMessages = (
   }, [userId, sessionId, onNewMessage]);
 
   useEffect(() => {
-    // Clean up previous channel if it exists
-    if (channelRef.current) {
-      console.log('Cleaning up previous message channel');
-      supabase.removeChannel(channelRef.current);
-      channelRef.current = null;
-    }
+    let subscription: RealtimeChannel | null = null;
 
-    const channelName = `messages-${userId || sessionId}-${Date.now()}`;
-    console.log('Setting up real-time listener:', { userId, sessionId, channelName });
-    
-    channelRef.current = supabase
-      .channel(channelName)
-      .on('postgres_changes', 
-        { event: 'INSERT', schema: 'public', table: 'messages' },
-        (payload) => {
-          console.log('New message received:', payload);
-          const newMessage = payload.new as any;
-          handleNewMessage(newMessage);
-        }
-      )
-      .subscribe((status) => {
-        console.log('Channel subscription status:', status);
-      });
-
-    return () => {
-      console.log(`Cleaning up message channel: ${channelName}`);
+    const setupSubscription = async () => {
+      // Clean up any existing subscription
       if (channelRef.current) {
-        supabase.removeChannel(channelRef.current);
+        console.log('Cleaning up existing subscription');
+        await supabase.removeChannel(channelRef.current);
         channelRef.current = null;
+      }
+
+      // Create a unique channel name based on the user/session ID and a timestamp
+      const identifier = userId || sessionId;
+      if (!identifier) {
+        console.log('No identifier available for subscription');
+        return;
+      }
+
+      const channelName = `messages:${identifier}:${Date.now()}`;
+      console.log(`Setting up new subscription on channel: ${channelName}`);
+
+      try {
+        // Create and subscribe to the new channel
+        const channel = supabase
+          .channel(channelName)
+          .on('postgres_changes', 
+            { 
+              event: 'INSERT', 
+              schema: 'public', 
+              table: 'messages',
+              filter: userId 
+                ? `sender_id=eq.${userId} OR recipient_id=eq.${userId}` 
+                : `session_id=eq.${sessionId}`
+            },
+            (payload) => {
+              console.log('New message received:', payload);
+              handleNewMessage(payload.new);
+            }
+          )
+          .subscribe((status) => {
+            console.log(`Subscription status for ${channelName}:`, status);
+            if (status === 'SUBSCRIBED') {
+              console.log('Successfully subscribed to channel');
+            } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
+              console.error(`Channel ${status}:`, channelName);
+              // Attempt to reconnect on unexpected closure
+              setupSubscription();
+            }
+          });
+
+        channelRef.current = channel;
+        subscription = channel;
+      } catch (error) {
+        console.error('Error setting up realtime subscription:', error);
+      }
+    };
+
+    setupSubscription();
+
+    // Cleanup function
+    return () => {
+      console.log('Cleaning up realtime subscription');
+      if (subscription) {
+        supabase.removeChannel(subscription)
+          .then(() => console.log('Successfully cleaned up subscription'))
+          .catch(err => console.error('Error cleaning up subscription:', err));
       }
     };
   }, [userId, sessionId, handleNewMessage]);
