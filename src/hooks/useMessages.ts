@@ -83,7 +83,7 @@ export const useMessages = (userId: string | null, sessionId: string | null) => 
         is_admin: false,
         recipient_id: null,
         session_id: userId ? null : sessionId,
-        message_status: 'sent'
+        message_status: 'sent' as const // Using type assertion to match the enum type
       };
 
       const { error } = await supabase.from('messages').insert(newMessage);
