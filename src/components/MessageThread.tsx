@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Message } from '@/types/message';
 import MessageBubble from './MessageBubble';
@@ -22,7 +21,7 @@ const MessageThread: React.FC<MessageThreadProps> = ({
   const threadMessages = isExpanded ? messages : [firstMessage];
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
         <span className="text-xs text-gray-500">
           {new Date(firstMessage.created_at).toLocaleDateString()}
