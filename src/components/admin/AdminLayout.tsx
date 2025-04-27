@@ -41,11 +41,11 @@ const AdminLayout = () => {
     );
   }
 
-  // Desktop layout with CSS Grid
+  // Desktop layout with fixed side panel
   return (
     <div className="h-screen w-screen bg-black overflow-hidden">
-      <div className="grid h-full" style={{ gridTemplateColumns: 'minmax(300px, 25%) 1fr' }}>
-        <div className="overflow-hidden border-r border-gray-800">
+      <div className="grid h-full" style={{ gridTemplateColumns: '300px 1fr' }}>
+        <div className="h-full overflow-hidden border-r border-gray-800">
           <ConversationList 
             onSelectUser={handleSelectUser}
             user={user}
@@ -53,7 +53,7 @@ const AdminLayout = () => {
             onSignOut={signOut}
           />
         </div>
-        <div className="overflow-hidden">
+        <div className="h-full overflow-hidden">
           {selectedUserId ? (
             <ConversationView userId={selectedUserId} />
           ) : (
