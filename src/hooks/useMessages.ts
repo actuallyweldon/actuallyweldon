@@ -22,20 +22,30 @@ export const useMessages = (userId: string | null, sessionId: string | null) => 
 
   const markMessagesAsRead = async (messageIds: string[]) => {
     try {
-      const promises = messageIds.map(messageId => 
-        supabase.rpc('update_message_status', { 
-          message_id: messageId, 
-          new_status: 'read' as const 
-        })
+      const results = await Promise.allSettled(
+        messageIds.map(messageId => 
+          supabase.rpc('update_message_status', { 
+            message_id: messageId, 
+            new_status: 'read' as const 
+          })
+        )
       );
       
-      await Promise.all(promises);
+      const failures = results.filter(result => result.status === 'rejected');
+      if (failures.length > 0) {
+        console.error('Some messages failed to mark as read:', failures);
+        toast({
+          title: "Warning",
+          description: "Some message statuses couldn't be updated",
+          variant: "destructive",
+        });
+      }
     } catch (err) {
       console.error('Error marking messages as read:', err);
       toast({
         title: "Error",
         description: "Failed to update message status",
-        variant: "destructive"
+        variant: "destructive",
       });
     }
   };
@@ -118,7 +128,7 @@ export const useMessages = (userId: string | null, sessionId: string | null) => 
       toast({
         title: "Error",
         description: errorMessage,
-        variant: "destructive"
+        variant: "destructive",
       });
       return false;
     }
