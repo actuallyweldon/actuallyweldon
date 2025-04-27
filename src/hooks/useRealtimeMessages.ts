@@ -1,5 +1,5 @@
 
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { formatMessage } from '@/utils/messageFormatting';
 import { playMessageSound } from '@/utils/sound';
@@ -9,6 +9,8 @@ export const useRealtimeMessages = (
   sessionId: string | null,
   onNewMessage: (message: any) => void
 ) => {
+  const channelRef = useRef<any>(null);
+
   const handleNewMessage = useCallback((newMessage: any) => {
     console.log('Processing new message:', newMessage);
     
@@ -49,11 +51,18 @@ export const useRealtimeMessages = (
       return;
     }
 
+    // Clean up previous channel if it exists
+    if (channelRef.current) {
+      console.log('Cleaning up previous message channel');
+      supabase.removeChannel(channelRef.current);
+      channelRef.current = null;
+    }
+
     // Create a unique channel name for each user/session
-    const channelName = `messages-${userId || sessionId}`;
+    const channelName = `messages-${userId || sessionId}-${Date.now()}`;
     console.log('Setting up real-time listener:', { userId, sessionId, channelName });
     
-    const channel = supabase
+    channelRef.current = supabase
       .channel(channelName)
       .on('postgres_changes', 
         { event: 'INSERT', schema: 'public', table: 'messages' },
@@ -68,8 +77,11 @@ export const useRealtimeMessages = (
       });
 
     return () => {
-      console.log('Cleaning up message listener');
-      supabase.removeChannel(channel);
+      console.log(`Cleaning up message channel: ${channelName}`);
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
     };
   }, [userId, sessionId, handleNewMessage]);
 };

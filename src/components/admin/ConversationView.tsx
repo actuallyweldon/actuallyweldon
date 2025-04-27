@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Loader2 } from 'lucide-react';
 import MessageList from '../MessageList';
 import MessageInput from '../MessageInput';
@@ -26,7 +26,8 @@ const ConversationView: React.FC<ConversationViewProps> = ({ userId, onBack }) =
   const [error, setError] = useState<string | null>(null);
   const [isAnonymous, setIsAnonymous] = useState(false);
   const { setTypingStatus, typingUsers } = useTypingIndicators(user?.id || null, null);
-
+  const channelRef = useRef<any>(null);
+  
   useEffect(() => {
     const checkUserType = async () => {
       try {
@@ -120,10 +121,17 @@ const ConversationView: React.FC<ConversationViewProps> = ({ userId, onBack }) =
   }, [userId, isAnonymous]);
 
   useEffect(() => {
-    const channelName = `messages-${userId}`;
+    // Clean up previous channel if it exists
+    if (channelRef.current) {
+      console.log('Cleaning up previous conversation channel');
+      supabase.removeChannel(channelRef.current);
+      channelRef.current = null;
+    }
+    
+    const channelName = `messages-${userId}-${Date.now()}`;
     console.log(`Setting up realtime channel: ${channelName}`);
     
-    const channel = supabase
+    channelRef.current = supabase
       .channel(channelName)
       .on('postgres_changes', 
         { 
@@ -157,10 +165,8 @@ const ConversationView: React.FC<ConversationViewProps> = ({ userId, onBack }) =
           setConnectionStatus('disconnected');
           console.error('Supabase channel disconnected or error:', status);
           
-          setTimeout(() => {
-            channel.subscribe();
-            setConnectionStatus('connecting');
-          }, 5000);
+          // Don't auto-reconnect here, as it could lead to multiple subscriptions
+          setConnectionStatus('disconnected');
         } else {
           setConnectionStatus('connecting');
         }
@@ -168,7 +174,10 @@ const ConversationView: React.FC<ConversationViewProps> = ({ userId, onBack }) =
 
     return () => {
       console.log('Cleaning up channel:', channelName);
-      supabase.removeChannel(channel);
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
     };
   }, [userId, isAnonymous]);
 

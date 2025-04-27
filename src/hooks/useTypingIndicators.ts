@@ -5,16 +5,29 @@ import { TypingIndicator } from '@/types/message';
 
 export const useTypingIndicators = (userId: string | null, sessionId: string | null) => {
   const [typingUsers, setTypingUsers] = useState<TypingIndicator[]>([]);
-  const channelRef = useRef(supabase.channel('typing'));
+  const channelRef = useRef<any>(null);
+  const isSubscribedRef = useRef(false);
 
   useEffect(() => {
     if (!sessionId && !userId) return;
     
-    const channel = channelRef.current;
+    // Clean up previous channel if it exists
+    if (channelRef.current) {
+      console.log('Cleaning up previous typing channel');
+      supabase.removeChannel(channelRef.current);
+      channelRef.current = null;
+      isSubscribedRef.current = false;
+    }
     
-    channel
+    // Create new channel with a unique name based on user/session ID
+    const channelName = `typing-${userId || sessionId}-${Date.now()}`;
+    console.log(`Creating new typing channel: ${channelName}`);
+    
+    channelRef.current = supabase.channel(channelName);
+    
+    channelRef.current
       .on('presence', { event: 'sync' }, () => {
-        const state = channel.presenceState();
+        const state = channelRef.current.presenceState();
         const typingData: TypingIndicator[] = [];
         
         console.log('Typing channel state:', state);
@@ -35,22 +48,33 @@ export const useTypingIndicators = (userId: string | null, sessionId: string | n
         console.log('Updated typing data:', typingData);
         setTypingUsers(typingData);
       })
-      .subscribe((status) => {
-        console.log('Channel subscription status:', status);
+      .subscribe((status: string) => {
+        console.log('Typing channel subscription status:', status);
+        if (status === 'SUBSCRIBED') {
+          isSubscribedRef.current = true;
+        }
       });
 
     return () => {
-      channel.unsubscribe();
+      console.log(`Cleaning up typing channel: ${channelName}`);
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+        isSubscribedRef.current = false;
+      }
     };
   }, [userId, sessionId]);
 
   const setTypingStatus = useCallback(async (isTyping: boolean) => {
-    const channel = channelRef.current;
+    if (!channelRef.current || !isSubscribedRef.current) {
+      console.log('Cannot set typing status: channel not ready');
+      return;
+    }
     
     console.log(`Setting typing status: ${isTyping}`);
     
     try {
-      await channel.track({
+      await channelRef.current.track({
         userId: userId || undefined,
         sessionId: userId ? undefined : sessionId,
         isTyping,
