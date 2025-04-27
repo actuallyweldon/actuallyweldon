@@ -226,7 +226,7 @@ const ConversationView: React.FC<ConversationViewProps> = ({ userId, onBack }) =
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full overflow-hidden">
       <ConversationHeader
         onBack={onBack}
         isMobile={isMobile}
@@ -240,9 +240,9 @@ const ConversationView: React.FC<ConversationViewProps> = ({ userId, onBack }) =
         </Alert>
       )}
       
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-hidden relative">
         {loading ? (
-          <div className="h-full flex items-center justify-center">
+          <div className="absolute inset-0 flex items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
           </div>
         ) : (
@@ -253,10 +253,12 @@ const ConversationView: React.FC<ConversationViewProps> = ({ userId, onBack }) =
         )}
       </div>
       
-      <MessageInput 
-        onSendMessage={handleSendMessage}
-        onTyping={setTypingStatus}
-      />
+      <div className="flex-none">
+        <MessageInput 
+          onSendMessage={handleSendMessage}
+          onTyping={setTypingStatus}
+        />
+      </div>
     </div>
   );
 };

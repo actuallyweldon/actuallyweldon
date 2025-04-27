@@ -243,8 +243,8 @@ const ConversationList: React.FC<ConversationListProps> = ({
   }
 
   return (
-    <div className="h-full flex flex-col overflow-hidden">
-      <div className="p-4 border-b border-gray-800 flex items-center justify-between">
+    <div className="flex h-full flex-col overflow-hidden">
+      <div className="flex-none p-4 border-b border-gray-800 flex items-center justify-between">
         <h2 className="text-lg font-semibold text-white">Messages</h2>
         <ProfileDropdown
           isAuthenticated={!!user}
