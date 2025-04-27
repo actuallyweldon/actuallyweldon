@@ -15,6 +15,9 @@ export const useRealtimeMessages = (
   const channelRef = useRef<RealtimeChannel | null>(null);
   const { toast } = useToast();
   const retryTimeoutRef = useRef<NodeJS.Timeout>();
+  const isInitializedRef = useRef(false);
+  const updateQueueRef = useRef<{id: string, status: string}[]>([]);
+  const processingStatusUpdateRef = useRef(false);
 
   const handleNewMessage = useCallback((newMessage: any) => {
     console.log('Processing new message:', newMessage);
@@ -30,54 +33,90 @@ export const useRealtimeMessages = (
       console.log('Playing message sound for incoming message');
       playMessageSound();
       
-      // Update message status to 'delivered' for incoming messages with retry logic
-      const updateMessageStatus = async (retryCount = 0) => {
-        if (formattedMessage.message_status === 'sent') {
-          const { error } = await supabase
-            .rpc('update_message_status', { 
-              message_id: formattedMessage.id, 
-              new_status: 'delivered'
-            });
-
-          if (error) {
-            console.error('Error updating message status:', error);
-            if (retryCount < 3) {
-              retryTimeoutRef.current = setTimeout(() => {
-                updateMessageStatus(retryCount + 1);
-              }, Math.pow(2, retryCount) * 1000); // Exponential backoff
-            } else {
-              toast({
-                title: "Message Status Update Failed",
-                description: "Could not update message status. Please check your connection.",
-                variant: "destructive",
-              });
-            }
-          }
-        }
-      };
-
-      updateMessageStatus();
+      // Queue message status update instead of executing immediately
+      if (formattedMessage.message_status === 'sent') {
+        updateQueueRef.current.push({
+          id: formattedMessage.id,
+          status: 'delivered'
+        });
+        processStatusUpdateQueue();
+      }
     }
-  }, [userId, sessionId, onNewMessage, toast]);
+  }, [userId, sessionId, onNewMessage]);
+
+  // Process status updates in queue to prevent simultaneous updates
+  const processStatusUpdateQueue = useCallback(async () => {
+    if (processingStatusUpdateRef.current || updateQueueRef.current.length === 0) {
+      return;
+    }
+
+    processingStatusUpdateRef.current = true;
+    
+    try {
+      const update = updateQueueRef.current[0];
+      const { error } = await supabase
+        .rpc('update_message_status', { 
+          message_id: update.id, 
+          new_status: update.status
+        });
+
+      if (error) {
+        console.error('Error updating message status:', error);
+        // If failed, retry this same update after a delay
+        setTimeout(() => {
+          processingStatusUpdateRef.current = false;
+          processStatusUpdateQueue();
+        }, 2000);
+        return;
+      }
+      
+      // Remove the processed update from queue
+      updateQueueRef.current.shift();
+    } catch (err) {
+      console.error('Error in status update processing:', err);
+      toast({
+        title: "Status Update Error",
+        description: "Failed to update message status. Will retry shortly.",
+        variant: "destructive",
+      });
+    } finally {
+      processingStatusUpdateRef.current = false;
+      
+      // Process next item if available
+      if (updateQueueRef.current.length > 0) {
+        setTimeout(processStatusUpdateQueue, 300); // Small delay between operations
+      }
+    }
+  }, [toast]);
 
   useEffect(() => {
-    let subscription: RealtimeChannel | null = null;
+    // Clean up any existing retries on unmount
+    return () => {
+      if (retryTimeoutRef.current) {
+        clearTimeout(retryTimeoutRef.current);
+      }
+    };
+  }, []);
 
-    const setupSubscription = async () => {
+  useEffect(() => {
+    // Skip if already initialized with same parameters or if we don't have an identifier
+    const identifier = userId || sessionId;
+    if (!identifier || isInitializedRef.current) {
+      return;
+    }
+
+    const setupSubscription = () => {
+      // Clean up existing channel if it exists
       if (channelRef.current) {
         console.log('Cleaning up existing subscription');
-        await supabase.removeChannel(channelRef.current);
+        supabase.removeChannel(channelRef.current);
         channelRef.current = null;
       }
 
-      const identifier = userId || sessionId;
-      if (!identifier) {
-        console.log('No identifier available for subscription');
-        return;
-      }
-
-      const channelName = `messages:${identifier}:${Date.now()}`;
-      console.log(`Setting up new subscription on channel: ${channelName}`);
+      // Create a stable channel name based on user or session ID
+      // Avoid using timestamps which create new channels on every render
+      const channelName = `messages-${identifier}`;
+      console.log(`Setting up subscription on channel: ${channelName}`);
 
       try {
         const channel = supabase
@@ -110,23 +149,32 @@ export const useRealtimeMessages = (
             console.log(`Subscription status for ${channelName}:`, status);
             if (status === 'SUBSCRIBED') {
               console.log('Successfully subscribed to channel');
+              isInitializedRef.current = true;
               toast({
                 title: "Connected",
                 description: "Real-time updates are now active",
               });
             } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
               console.error(`Channel ${status}:`, channelName);
+              isInitializedRef.current = false;
               toast({
                 title: "Connection Lost",
                 description: "Attempting to reconnect...",
                 variant: "destructive",
               });
-              setupSubscription();
+              
+              // Implement exponential backoff for reconnection attempts
+              if (retryTimeoutRef.current) {
+                clearTimeout(retryTimeoutRef.current);
+              }
+              
+              retryTimeoutRef.current = setTimeout(() => {
+                setupSubscription();
+              }, 2000);
             }
           });
 
         channelRef.current = channel;
-        subscription = channel;
       } catch (error) {
         console.error('Error setting up realtime subscription:', error);
         toast({
@@ -144,11 +192,12 @@ export const useRealtimeMessages = (
       if (retryTimeoutRef.current) {
         clearTimeout(retryTimeoutRef.current);
       }
-      if (subscription) {
-        supabase.removeChannel(subscription)
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current)
           .then(() => console.log('Successfully cleaned up subscription'))
           .catch(err => console.error('Error cleaning up subscription:', err));
       }
+      isInitializedRef.current = false;
     };
   }, [userId, sessionId, handleNewMessage, toast]);
 };

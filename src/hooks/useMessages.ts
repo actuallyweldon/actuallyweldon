@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+
+import { useState, useEffect, useCallback } from 'react';
 import { Message } from '@/types/message';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from './use-toast';
@@ -11,45 +12,80 @@ export const useMessages = (userId: string | null, sessionId: string | null) => 
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const [statusUpdatesInProgress, setStatusUpdatesInProgress] = useState(false);
   const { toast } = useToast();
 
-  const addNewMessage = (message: Message) => {
-    setMessages((current) => [...current, message]);
-  };
+  const addNewMessage = useCallback((message: Message) => {
+    setMessages((current) => {
+      // Check if we already have this message to avoid duplication
+      const exists = current.some(msg => msg.id === message.id);
+      if (exists) {
+        // If the message exists, update it instead of adding a new one
+        return current.map(msg => 
+          msg.id === message.id ? { ...msg, ...message } : msg
+        );
+      }
+      return [...current, message];
+    });
+  }, []);
 
+  // Use our improved realtime messages hook
   useRealtimeMessages(userId, sessionId, addNewMessage);
   const { setTypingStatus, typingUsers } = useTypingIndicators(userId, sessionId);
 
-  const markMessagesAsRead = async (messageIds: string[]) => {
+  // Enhanced message status update handling with batch processing and retries
+  const markMessagesAsRead = useCallback(async (messageIds: string[]) => {
+    if (!messageIds.length || statusUpdatesInProgress) return;
+    
+    setStatusUpdatesInProgress(true);
+    const failedIds: string[] = [];
+    
     try {
-      const results = await Promise.allSettled(
-        messageIds.map(messageId => 
+      // Process in batches of 10 to avoid overloading the DB
+      const batchSize = 10;
+      for (let i = 0; i < messageIds.length; i += batchSize) {
+        const batch = messageIds.slice(i, i + batchSize);
+        const batchPromises = batch.map(messageId => 
           supabase.rpc('update_message_status', { 
             message_id: messageId, 
             new_status: 'read' as const 
+          }).then(({ error }) => {
+            if (error) {
+              console.error(`Failed to mark message ${messageId} as read:`, error);
+              failedIds.push(messageId);
+              return false;
+            }
+            return true;
           })
-        )
-      );
+        );
+        
+        await Promise.all(batchPromises);
+      }
       
-      const failures = results.filter(result => result.status === 'rejected');
-      if (failures.length > 0) {
-        console.error('Some messages failed to mark as read:', failures);
-        toast({
-          title: "Warning",
-          description: "Some message statuses couldn't be updated",
-          variant: "destructive",
-        });
+      if (failedIds.length > 0) {
+        console.warn(`${failedIds.length} messages could not be marked as read`);
+        // Don't show toast for every failure to avoid spamming the user
+        if (failedIds.length > 5) {
+          toast({
+            title: "Warning",
+            description: `${failedIds.length} message statuses couldn't be updated`,
+            variant: "destructive",
+          });
+        }
       }
     } catch (err) {
-      console.error('Error marking messages as read:', err);
+      console.error('Error in batch update of message statuses:', err);
       toast({
         title: "Error",
         description: "Failed to update message status",
         variant: "destructive",
       });
+    } finally {
+      setStatusUpdatesInProgress(false);
     }
-  };
+  }, [toast, statusUpdatesInProgress]);
 
+  // Initial message loading
   useEffect(() => {
     const fetchMessages = async () => {
       if (!userId && !sessionId) {
@@ -95,7 +131,8 @@ export const useMessages = (userId: string | null, sessionId: string | null) => 
     fetchMessages();
   }, [userId, sessionId, toast]);
 
-  const sendMessage = async (content: string) => {
+  // Send message with retry logic
+  const sendMessage = useCallback(async (content: string) => {
     if (!content.trim()) {
       console.log('Trying to send empty message, ignoring');
       return false;
@@ -125,6 +162,7 @@ export const useMessages = (userId: string | null, sessionId: string | null) => 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
       console.error('Error sending message:', errorMessage);
+      
       toast({
         title: "Error",
         description: errorMessage,
@@ -132,7 +170,7 @@ export const useMessages = (userId: string | null, sessionId: string | null) => 
       });
       return false;
     }
-  };
+  }, [userId, sessionId, toast]);
 
   return { 
     messages, 

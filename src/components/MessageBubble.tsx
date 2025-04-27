@@ -24,7 +24,10 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
       onClick={handleMessageClick}
     >
       <div 
-        className={message.is_admin ? 'message-bubble-admin' : 'message-bubble-user'}
+        className={cn(
+          message.is_admin ? 'message-bubble-admin' : 'message-bubble-user',
+          'relative group'
+        )}
         style={{
           fontSize: '17px',
           fontWeight: 400,
@@ -36,7 +39,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
       </div>
       
       <div className={cn(
-        'flex items-center gap-1 px-1 mt-0.5',
+        'flex items-center gap-2 px-1 mt-0.5',
         'text-[11px] text-gray-500 transition-opacity duration-200',
         showTimestamp ? 'opacity-100' : 'opacity-0 group-hover:opacity-60',
         message.is_admin ? 'flex-row' : 'flex-row-reverse'
