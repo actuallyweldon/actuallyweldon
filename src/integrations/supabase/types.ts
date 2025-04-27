@@ -80,6 +80,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_user_last_session: {
+        Args: { user_id: string }
+        Returns: string
+      }
       is_admin: {
         Args: { user_id: string }
         Returns: boolean
