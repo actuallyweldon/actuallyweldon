@@ -1,4 +1,5 @@
-import React, { useEffect, useState, useRef } from 'react';
+
+import React, { useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import MessageList from '../MessageList';
 import MessageInput from '../MessageInput';
@@ -10,6 +11,7 @@ import ConversationHeader from './ConversationHeader';
 import { formatMessage } from '@/utils/messageFormatting';
 import { useSupabaseAuth } from '@/hooks/useSupabaseAuth';
 import { useTypingIndicators } from '@/hooks/useTypingIndicators';
+import { useStableRealtimeConnection } from '@/hooks/useStableRealtimeConnection';
 
 interface ConversationViewProps {
   userId: string;
@@ -26,7 +28,40 @@ const ConversationView: React.FC<ConversationViewProps> = ({ userId, onBack }) =
   const [error, setError] = useState<string | null>(null);
   const [isAnonymous, setIsAnonymous] = useState(false);
   const { setTypingStatus, typingUsers } = useTypingIndicators(user?.id || null, null);
-  const channelRef = useRef<any>(null);
+
+  // Use our stable connection hook
+  const { isConnected } = useStableRealtimeConnection(
+    `conversation-${userId}`,
+    {
+      onInsert: (payload) => {
+        const newMessage = payload.new as any;
+        console.log('New message in conversation view:', newMessage);
+        
+        const isRelevant = isAnonymous 
+          ? (newMessage.session_id === userId || newMessage.recipient_id === userId)
+          : (newMessage.sender_id === userId || newMessage.recipient_id === userId);
+          
+        if (!isRelevant) {
+          console.log('Message not relevant for this conversation');
+          return;
+        }
+
+        console.log('Adding new message to conversation');
+        const formattedMessage = formatMessage(newMessage);
+        setMessages((current) => [...current, formattedMessage]);
+      },
+      onSubscribe: (status) => {
+        if (status === 'SUBSCRIBED') {
+          setConnectionStatus('connected');
+        }
+      }
+    },
+    {
+      table: 'messages',
+      schema: 'public'
+    },
+    !!userId
+  );
   
   useEffect(() => {
     const checkUserType = async () => {
@@ -116,70 +151,15 @@ const ConversationView: React.FC<ConversationViewProps> = ({ userId, onBack }) =
   };
 
   useEffect(() => {
-    fetchUserInfo();
-    fetchMessages();
+    if (userId) {
+      fetchUserInfo();
+      fetchMessages();
+    }
   }, [userId, isAnonymous]);
 
   useEffect(() => {
-    // Clean up previous channel if it exists
-    if (channelRef.current) {
-      console.log('Cleaning up previous conversation channel');
-      supabase.removeChannel(channelRef.current);
-      channelRef.current = null;
-    }
-    
-    const channelName = `messages-${userId}-${Date.now()}`;
-    console.log(`Setting up realtime channel: ${channelName}`);
-    
-    channelRef.current = supabase
-      .channel(channelName)
-      .on('postgres_changes', 
-        { 
-          event: 'INSERT', 
-          schema: 'public', 
-          table: 'messages'
-        },
-        (payload) => {
-          const newMessage = payload.new as any;
-          console.log('New message in conversation view:', newMessage);
-          
-          const isRelevant = isAnonymous 
-            ? (newMessage.session_id === userId || newMessage.recipient_id === userId)
-            : (newMessage.sender_id === userId || newMessage.recipient_id === userId);
-            
-          if (!isRelevant) {
-            console.log('Message not relevant for this conversation');
-            return;
-          }
-
-          console.log('Adding new message to conversation');
-          const formattedMessage = formatMessage(newMessage);
-          setMessages((current) => [...current, formattedMessage]);
-        }
-      )
-      .subscribe(status => {
-        if (status === 'SUBSCRIBED') {
-          setConnectionStatus('connected');
-          console.log('Realtime connection established');
-        } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
-          setConnectionStatus('disconnected');
-          console.error('Supabase channel disconnected or error:', status);
-          
-          // Don't auto-reconnect here, as it could lead to multiple subscriptions
-          setConnectionStatus('disconnected');
-        } else {
-          setConnectionStatus('connecting');
-        }
-      });
-
-    return () => {
-      console.log('Cleaning up channel:', channelName);
-      if (channelRef.current) {
-        supabase.removeChannel(channelRef.current);
-        channelRef.current = null;
-      }
-    };
-  }, [userId, isAnonymous]);
+    setConnectionStatus(isConnected ? 'connected' : 'connecting');
+  }, [isConnected]);
 
   const handleSendMessage = async (content: string) => {
     try {
