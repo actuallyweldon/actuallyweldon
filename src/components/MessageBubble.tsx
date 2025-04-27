@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Message } from '@/types/message';
+import MessageStatus from './MessageStatus';
 
 interface MessageBubbleProps {
   message: Message;
@@ -31,23 +32,22 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
       >
         <p>{message.content}</p>
         
-        {showTimestamp && (
-          <div 
-            className={cn(
-              'text-[11px] opacity-60 mt-1 transition-opacity duration-200 ease-in-out',
-              message.is_admin ? 'text-left' : 'text-right'
-            )}
-            style={{
-              color: 'rgba(255, 255, 255, 0.6)'
-            }}
-          >
-            {new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-          </div>
-        )}
+        <div className={cn(
+          'flex items-center justify-between mt-1',
+          'text-[11px] opacity-60 transition-opacity duration-200',
+          showTimestamp ? 'opacity-60' : 'opacity-0 group-hover:opacity-60'
+        )}>
+          <span>
+            {new Date(message.created_at).toLocaleTimeString([], { 
+              hour: '2-digit', 
+              minute: '2-digit' 
+            })}
+          </span>
+          <MessageStatus status={message.message_status} className="ml-2" />
+        </div>
       </div>
     </div>
   );
 };
 
 export default MessageBubble;
-

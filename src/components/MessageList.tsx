@@ -1,7 +1,8 @@
+
 import React, { useEffect, useRef } from 'react';
-import MessageBubble from './MessageBubble';
 import { Message } from '@/types/message';
 import { Loader2 } from 'lucide-react';
+import MessageThread from './MessageThread';
 
 interface MessageListProps {
   messages: Message[];
@@ -50,28 +51,21 @@ const MessageList: React.FC<MessageListProps> = ({
     );
   }
 
-  const groupedMessages: {[key: string]: Message[]} = {};
+  // Group messages by date and thread
+  const groupedThreads: { [key: string]: Message[] } = {};
+  
   filteredMessages.forEach(message => {
     const date = new Date(message.created_at).toLocaleDateString();
-    if (!groupedMessages[date]) {
-      groupedMessages[date] = [];
+    if (!groupedThreads[date]) {
+      groupedThreads[date] = [];
     }
-    groupedMessages[date].push(message);
+    groupedThreads[date].push(message);
   });
 
   return (
-    <div className="fixed top-[60px] bottom-[60px] left-0 right-0 overflow-y-auto p-4 space-y-2 bg-imessage-background">
-      {Object.entries(groupedMessages).map(([date, dateMessages]) => (
-        <div key={date} className="space-y-2">
-          <div className="flex justify-center my-4">
-            <span className="text-xs bg-gray-700 text-gray-300 px-2 py-1 rounded-full">
-              {date}
-            </span>
-          </div>
-          {dateMessages.map((message) => (
-            <MessageBubble key={message.id} message={message} />
-          ))}
-        </div>
+    <div className="fixed top-[60px] bottom-[60px] left-0 right-0 overflow-y-auto p-4 space-y-4 bg-imessage-background">
+      {Object.entries(groupedThreads).map(([date, messages]) => (
+        <MessageThread key={date} messages={messages} />
       ))}
       
       {showTypingIndicator && (
