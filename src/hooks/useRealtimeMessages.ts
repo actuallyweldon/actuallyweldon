@@ -4,18 +4,18 @@ import { supabase } from '@/integrations/supabase/client';
 import { formatMessage } from '@/utils/messageFormatting';
 import { playMessageSound } from '@/utils/sound';
 import { RealtimeChannel } from '@supabase/supabase-js';
+import { Message } from '@/types/message';
 
 export const useRealtimeMessages = (
   userId: string | null,
   sessionId: string | null,
-  onNewMessage: (message: any) => void
+  onNewMessage: (message: Message) => void,
 ) => {
   const channelRef = useRef<RealtimeChannel | null>(null);
 
   const handleNewMessage = useCallback((newMessage: any) => {
     console.log('Processing new message:', newMessage);
     
-    // RLS policies will handle message visibility, so we can simplify our checks
     const formattedMessage = formatMessage(newMessage);
     onNewMessage(formattedMessage);
     
@@ -47,14 +47,12 @@ export const useRealtimeMessages = (
     let subscription: RealtimeChannel | null = null;
 
     const setupSubscription = async () => {
-      // Clean up any existing subscription
       if (channelRef.current) {
         console.log('Cleaning up existing subscription');
         await supabase.removeChannel(channelRef.current);
         channelRef.current = null;
       }
 
-      // Create a unique channel name based on the user/session ID and a timestamp
       const identifier = userId || sessionId;
       if (!identifier) {
         console.log('No identifier available for subscription');
@@ -65,21 +63,31 @@ export const useRealtimeMessages = (
       console.log(`Setting up new subscription on channel: ${channelName}`);
 
       try {
-        // Create and subscribe to the new channel
         const channel = supabase
           .channel(channelName)
           .on('postgres_changes', 
             { 
               event: 'INSERT', 
               schema: 'public', 
-              table: 'messages',
-              filter: userId 
-                ? `sender_id=eq.${userId} OR recipient_id=eq.${userId}` 
-                : `session_id=eq.${sessionId}`
+              table: 'messages'
             },
             (payload) => {
               console.log('New message received:', payload);
               handleNewMessage(payload.new);
+            }
+          )
+          .on('postgres_changes',
+            {
+              event: 'UPDATE',
+              schema: 'public',
+              table: 'messages',
+              filter: `message_status=in.(delivered,read)`
+            },
+            (payload) => {
+              console.log('Message status updated:', payload);
+              // Update existing message with new status
+              const updatedMessage = formatMessage(payload.new);
+              onNewMessage(updatedMessage);
             }
           )
           .subscribe((status) => {
@@ -88,7 +96,6 @@ export const useRealtimeMessages = (
               console.log('Successfully subscribed to channel');
             } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
               console.error(`Channel ${status}:`, channelName);
-              // Attempt to reconnect on unexpected closure
               setupSubscription();
             }
           });
@@ -102,7 +109,6 @@ export const useRealtimeMessages = (
 
     setupSubscription();
 
-    // Cleanup function
     return () => {
       console.log('Cleaning up realtime subscription');
       if (subscription) {

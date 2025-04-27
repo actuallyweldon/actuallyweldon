@@ -22,14 +22,21 @@ export const useMessages = (userId: string | null, sessionId: string | null) => 
 
   const markMessagesAsRead = async (messageIds: string[]) => {
     try {
-      for (const messageId of messageIds) {
-        await supabase.rpc('update_message_status', { 
+      const promises = messageIds.map(messageId => 
+        supabase.rpc('update_message_status', { 
           message_id: messageId, 
           new_status: 'read' as const 
-        });
-      }
+        })
+      );
+      
+      await Promise.all(promises);
     } catch (err) {
       console.error('Error marking messages as read:', err);
+      toast({
+        title: "Error",
+        description: "Failed to update message status",
+        variant: "destructive"
+      });
     }
   };
 
