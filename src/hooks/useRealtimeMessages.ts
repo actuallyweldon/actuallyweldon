@@ -30,9 +30,10 @@ export const useRealtimeMessages = (
       // Update message status to 'delivered' for incoming messages
       if (formattedMessage.message_status === 'sent') {
         supabase
-          .from('messages')
-          .update({ message_status: 'delivered' })
-          .eq('id', formattedMessage.id)
+          .rpc('update_message_status', { 
+            message_id: formattedMessage.id, 
+            new_status: 'delivered'
+          })
           .then(({ error }) => {
             if (error) {
               console.error('Error updating message status:', error);

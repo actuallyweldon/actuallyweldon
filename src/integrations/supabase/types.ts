@@ -15,7 +15,9 @@ export type Database = {
           created_at: string
           id: string
           is_admin: boolean
-          message_status: string | null
+          message_status:
+            | Database["public"]["Enums"]["message_status_type"]
+            | null
           recipient_id: string | null
           sender_id: string | null
           session_id: string | null
@@ -26,7 +28,9 @@ export type Database = {
           created_at?: string
           id?: string
           is_admin?: boolean
-          message_status?: string | null
+          message_status?:
+            | Database["public"]["Enums"]["message_status_type"]
+            | null
           recipient_id?: string | null
           sender_id?: string | null
           session_id?: string | null
@@ -37,7 +41,9 @@ export type Database = {
           created_at?: string
           id?: string
           is_admin?: boolean
-          message_status?: string | null
+          message_status?:
+            | Database["public"]["Enums"]["message_status_type"]
+            | null
           recipient_id?: string | null
           sender_id?: string | null
           session_id?: string | null
@@ -92,9 +98,16 @@ export type Database = {
         Args: { checking_session_id: string }
         Returns: boolean
       }
+      update_message_status: {
+        Args: {
+          message_id: string
+          new_status: Database["public"]["Enums"]["message_status_type"]
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      message_status_type: "sent" | "delivered" | "read"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -209,6 +222,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      message_status_type: ["sent", "delivered", "read"],
+    },
   },
 } as const
