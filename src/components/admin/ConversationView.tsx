@@ -10,6 +10,7 @@ import ConversationHeader from './ConversationHeader';
 import { formatMessage } from '@/utils/messageFormatting';
 import { useSupabaseAuth } from '@/hooks/useSupabaseAuth';
 import { useTypingIndicators } from '@/hooks/useTypingIndicators';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface ConversationViewProps {
   userId: string;
@@ -165,7 +166,6 @@ const ConversationView: React.FC<ConversationViewProps> = ({ userId, onBack }) =
           setConnectionStatus('disconnected');
           console.error('Supabase channel disconnected or error:', status);
           
-          // Don't auto-reconnect here, as it could lead to multiple subscriptions
           setConnectionStatus('disconnected');
         } else {
           setConnectionStatus('connecting');
@@ -240,20 +240,24 @@ const ConversationView: React.FC<ConversationViewProps> = ({ userId, onBack }) =
         </Alert>
       )}
       
-      <div className="flex-1 overflow-hidden relative">
+      <div className="flex-1 overflow-hidden">
         {loading ? (
           <div className="absolute inset-0 flex items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
           </div>
         ) : (
-          <MessageList 
-            messages={messages} 
-            showTypingIndicator={typingUsers.length > 0}
-          />
+          <ScrollArea className="h-full">
+            <div className="p-4">
+              <MessageList 
+                messages={messages} 
+                showTypingIndicator={typingUsers.length > 0}
+              />
+            </div>
+          </ScrollArea>
         )}
       </div>
       
-      <div className="flex-none">
+      <div className="flex-none py-2">
         <MessageInput 
           onSendMessage={handleSendMessage}
           onTyping={setTypingStatus}

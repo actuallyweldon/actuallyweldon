@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef } from 'react';
 import { Message } from '@/types/message';
 import { Loader2 } from 'lucide-react';
@@ -41,7 +42,7 @@ const MessageList: React.FC<MessageListProps> = ({
 
   if (isLoading) {
     return (
-      <div className="fixed top-[60px] bottom-[60px] left-0 right-0 flex items-center justify-center bg-imessage-background">
+      <div className="flex items-center justify-center h-full">
         <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
       </div>
     );
@@ -57,7 +58,7 @@ const MessageList: React.FC<MessageListProps> = ({
 
   if (filteredMessages.length === 0 && !showTypingIndicator) {
     return (
-      <div className="flex-1 flex items-center justify-center p-4 text-center text-gray-500 bg-imessage-background">
+      <div className="flex items-center justify-center h-full p-4 text-center text-gray-500">
         <p>No messages yet. Start the conversation!</p>
       </div>
     );
@@ -75,7 +76,7 @@ const MessageList: React.FC<MessageListProps> = ({
   });
 
   return (
-    <div className="fixed top-[60px] bottom-[60px] left-0 right-0 overflow-y-auto p-4 space-y-4 bg-imessage-background">
+    <div className="space-y-4">
       {Object.entries(groupedThreads).map(([date, messages]) => (
         <MessageThread key={date} messages={messages} />
       ))}

@@ -20,8 +20,8 @@ const AdminLayout = () => {
 
   if (isMobile) {
     return (
-      <div className="fixed inset-0 bg-black overflow-hidden">
-        <div className="relative h-full transition-transform duration-300 ease-in-out">
+      <div className="fixed inset-0 bg-black">
+        <div className="h-full">
           {!selectedUserId ? (
             <ConversationList 
               onSelectUser={handleSelectUser}
@@ -41,9 +41,9 @@ const AdminLayout = () => {
   }
 
   return (
-    <div className="fixed inset-0 bg-black overflow-hidden">
-      <div className="grid h-full grid-cols-[300px_1fr] overflow-hidden">
-        <div className="h-full overflow-hidden border-r border-gray-800">
+    <div className="fixed inset-0 bg-black">
+      <div className="grid h-full grid-cols-[300px_1fr]">
+        <div className="border-r border-gray-800">
           <ConversationList 
             onSelectUser={handleSelectUser}
             user={user}
@@ -51,7 +51,7 @@ const AdminLayout = () => {
             onSignOut={signOut}
           />
         </div>
-        <div className="h-full overflow-hidden">
+        <div>
           {selectedUserId ? (
             <ConversationView userId={selectedUserId} />
           ) : (

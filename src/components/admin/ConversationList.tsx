@@ -5,6 +5,7 @@ import { format } from 'date-fns';
 import { Loader2, UserRound } from 'lucide-react';
 import ProfileDropdown from '../ProfileDropdown';
 import { User } from '@supabase/supabase-js';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface UserInfo {
   email?: string;
@@ -243,7 +244,7 @@ const ConversationList: React.FC<ConversationListProps> = ({
   }
 
   return (
-    <div className="flex h-full flex-col overflow-hidden">
+    <div className="flex h-full flex-col">
       <div className="flex-none p-4 border-b border-gray-800 flex items-center justify-between">
         <h2 className="text-lg font-semibold text-white">Messages</h2>
         <ProfileDropdown
@@ -255,7 +256,7 @@ const ConversationList: React.FC<ConversationListProps> = ({
         />
       </div>
       
-      <div className="flex-1 overflow-y-auto">
+      <ScrollArea className="flex-1">
         {conversations.length === 0 ? (
           <div className="p-4 text-center text-gray-400">
             No conversations yet
@@ -286,7 +287,7 @@ const ConversationList: React.FC<ConversationListProps> = ({
             </div>
           ))
         )}
-      </div>
+      </ScrollArea>
     </div>
   );
 };
