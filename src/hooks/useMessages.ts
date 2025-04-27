@@ -18,7 +18,6 @@ export const useMessages = (userId: string | null, sessionId: string | null) => 
   };
 
   useRealtimeMessages(userId, sessionId, addNewMessage);
-
   const { setTypingStatus, typingUsers } = useTypingIndicators(userId, sessionId);
 
   useEffect(() => {
@@ -29,42 +28,42 @@ export const useMessages = (userId: string | null, sessionId: string | null) => 
         return;
       }
       
-      console.log('Fetching messages for:', { userId, sessionId });
       try {
         setError(null);
-        
-        let query = supabase.from('messages').select('*');
+        let query = supabase.from('messages')
+          .select('*')
+          .order('created_at', { ascending: true });
         
         if (userId) {
-          // For authenticated users, get both their messages and admin replies to them
-          console.log('Fetching messages for authenticated user:', userId);
           query = query.or(`sender_id.eq.${userId},recipient_id.eq.${userId}`);
         } else if (sessionId) {
-          // For anonymous users, get both their messages and admin replies to their session
-          console.log('Fetching messages for anonymous session:', sessionId);
           query = query.or(`session_id.eq.${sessionId},recipient_id.eq.${sessionId}`);
         }
 
-        const { data, error: fetchError } = await query.order('created_at', { ascending: true });
+        const { data, error: fetchError } = await query;
 
         if (fetchError) {
-          console.error('Error fetching messages:', fetchError);
-          throw new Error('Error fetching messages');
+          throw new Error(`Error fetching messages: ${fetchError.message}`);
         }
 
-        console.log('Fetched messages:', data?.length || 0);
         const formattedMessages = (data || []).map(formatMessage);
         setMessages(formattedMessages);
       } catch (err) {
-        console.error('Error processing messages:', err);
-        setError(err instanceof Error ? err : new Error('Unknown error occurred'));
+        const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+        console.error('Error processing messages:', errorMessage);
+        setError(new Error(errorMessage));
+        toast({
+          title: "Error Loading Messages",
+          description: errorMessage,
+          variant: "destructive"
+        });
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchMessages();
-  }, [userId, sessionId]);
+  }, [userId, sessionId, toast]);
 
   const sendMessage = async (content: string) => {
     if (!content.trim()) {
@@ -72,11 +71,9 @@ export const useMessages = (userId: string | null, sessionId: string | null) => 
       return false;
     }
     
-    console.log('Attempting to send message:', { content, userId, sessionId });
     try {
       if (!userId && !sessionId) {
-        console.error('No user ID or session ID available');
-        return false;
+        throw new Error('No user ID or session ID available');
       }
       
       const newMessage = {
@@ -84,29 +81,23 @@ export const useMessages = (userId: string | null, sessionId: string | null) => 
         sender_id: userId || null,
         is_admin: false,
         recipient_id: null,
-        session_id: userId ? null : sessionId
+        session_id: userId ? null : sessionId,
+        message_status: 'sent'
       };
 
-      console.log('Sending message payload:', newMessage);
       const { error } = await supabase.from('messages').insert(newMessage);
 
       if (error) {
-        console.error('Error sending message:', error);
-        toast({
-          title: "Error",
-          description: "Failed to send message. Please try again.",
-          variant: "destructive"
-        });
-        return false;
+        throw error;
       }
       
-      console.log('Message sent successfully');
       return true;
     } catch (error) {
-      console.error('Unexpected error sending message:', error);
+      const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
+      console.error('Error sending message:', errorMessage);
       toast({
         title: "Error",
-        description: "An unexpected error occurred. Please try again.",
+        description: errorMessage,
         variant: "destructive"
       });
       return false;

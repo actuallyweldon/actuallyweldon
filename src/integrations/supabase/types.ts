@@ -15,27 +15,33 @@ export type Database = {
           created_at: string
           id: string
           is_admin: boolean
+          message_status: string | null
           recipient_id: string | null
           sender_id: string | null
           session_id: string | null
+          updated_at: string | null
         }
         Insert: {
           content: string
           created_at?: string
           id?: string
           is_admin?: boolean
+          message_status?: string | null
           recipient_id?: string | null
           sender_id?: string | null
           session_id?: string | null
+          updated_at?: string | null
         }
         Update: {
           content?: string
           created_at?: string
           id?: string
           is_admin?: boolean
+          message_status?: string | null
           recipient_id?: string | null
           sender_id?: string | null
           session_id?: string | null
+          updated_at?: string | null
         }
         Relationships: []
       }

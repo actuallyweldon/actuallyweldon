@@ -19,7 +19,6 @@ export const useRealtimeMessages = (
       return;
     }
 
-    // Check if this message is relevant for the current user/session
     const isRelevant = userId 
       ? (newMessage.sender_id === userId || 
          (newMessage.is_admin && newMessage.recipient_id === userId))
@@ -42,6 +41,19 @@ export const useRealtimeMessages = (
     if (isIncoming) {
       console.log('Playing message sound for incoming message');
       playMessageSound();
+      
+      // Update message status to 'delivered' for incoming messages
+      if (formattedMessage.message_status === 'sent') {
+        supabase
+          .from('messages')
+          .update({ message_status: 'delivered' })
+          .eq('id', formattedMessage.id)
+          .then(({ error }) => {
+            if (error) {
+              console.error('Error updating message status:', error);
+            }
+          });
+      }
     }
   }, [userId, sessionId, onNewMessage]);
 
