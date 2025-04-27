@@ -16,13 +16,15 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
   };
   
   return (
-    <div className={cn(
-      'animate-message-appear flex mb-2',  // Reverted from mb-4 back to mb-2
-      message.is_admin ? 'justify-start' : 'justify-end'
-    )}>
+    <div 
+      className={cn(
+        'animate-message-appear flex flex-col mb-1',
+        message.is_admin ? 'items-start' : 'items-end'
+      )}
+      onClick={handleMessageClick}
+    >
       <div 
-        className={message.is_admin ? 'message-bubble-admin' : 'message-bubble-user'} 
-        onClick={handleMessageClick}
+        className={message.is_admin ? 'message-bubble-admin' : 'message-bubble-user'}
         style={{
           fontSize: '17px',
           fontWeight: 400,
@@ -31,20 +33,21 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
         }}
       >
         <p>{message.content}</p>
-        
-        <div className={cn(
-          'flex items-center justify-between mt-1',
-          'text-[11px] opacity-60 transition-opacity duration-200',
-          showTimestamp ? 'opacity-60' : 'opacity-0 group-hover:opacity-60'
-        )}>
-          <span>
-            {new Date(message.created_at).toLocaleTimeString([], { 
-              hour: '2-digit', 
-              minute: '2-digit' 
-            })}
-          </span>
-          <MessageStatus status={message.message_status} className="ml-2" />
-        </div>
+      </div>
+      
+      <div className={cn(
+        'flex items-center gap-1 px-1 mt-0.5',
+        'text-[11px] text-gray-500 transition-opacity duration-200',
+        showTimestamp ? 'opacity-100' : 'opacity-0 group-hover:opacity-60',
+        message.is_admin ? 'flex-row' : 'flex-row-reverse'
+      )}>
+        <span>
+          {new Date(message.created_at).toLocaleTimeString([], { 
+            hour: '2-digit', 
+            minute: '2-digit' 
+          })}
+        </span>
+        <MessageStatus status={message.message_status} />
       </div>
     </div>
   );
